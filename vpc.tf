@@ -1,17 +1,11 @@
-# specify the provider and access details
-provider "aws" {
-  access_key = "AKIAJQ4CXNBNECEX2IOA"
-  secret_key = "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"
-  region     = "${var.aws_region}"
-}
-
 /*
   Create the environment VPC.
 
   Dependencies: none
 */
 resource "aws_vpc" "environment" {
-  cidr_block = "${lookup(var.cidr_blocks, var.environment)}"
+
+  cidr_block = "${var.cidr_block}"
 
   /*
     Enable DNS support and DNS hostnames to support private hosted zones
@@ -28,6 +22,7 @@ resource "aws_vpc" "environment" {
     builtWith = "terraform"
     Name      = "${var.environment}"
   }
+
 }
 
 /*
@@ -64,6 +59,7 @@ resource "aws_vpn_connection" "vpn" {
     builtWith = "terraform"
     Name      = "${var.environment}"
   }
+
 }
 
 /*
@@ -75,20 +71,21 @@ resource "aws_vpn_connection" "vpn" {
 */
 resource "aws_subnet" "public" {
 
-	vpc_id = "${aws_vpc.environment.id}"
+  vpc_id = "${aws_vpc.environment.id}"
 
-	/* create subnet at the end of the cidr block */
-	cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, 8, 255)}"
-	/* place in first availability zone */
-	availability_zone	= "${element(data.aws_availability_zones.all.names, 1)}"
+  /* create subnet at the end of the cidr block */
+  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, 8, 255)}"
+  /* place in first availability zone */
+  availability_zone	= "${element(data.aws_availability_zones.all.names, 1)}"
 
-	/* instances in the public zone get an IP address */
-	map_public_ip_on_launch	= true
+  /* instances in the public zone get an IP address */
+  map_public_ip_on_launch	= true
 
-	tags {
+  tags {
     builtWith = "terraform"
-		Name      = "public.${var.environment}"
-	}
+    Name      = "public.${var.environment}"
+  }
+
 }
 
 /*
@@ -102,7 +99,7 @@ resource "aws_internet_gateway" "gw" {
 
   tags {
     builtWith  = "terraform"
-    Name       = "main"
+    Name       = "${var.environment}"
   }
 }
 
@@ -113,18 +110,18 @@ resource "aws_internet_gateway" "gw" {
 */
 resource "aws_route_table" "public" {
 
-	vpc_id = "${aws_vpc.environment.id}"
+  vpc_id = "${aws_vpc.environment.id}"
 
   /* default route to internet gateway */
-	route {
-		cidr_block = "0.0.0.0/0"
-		gateway_id = "${aws_internet_gateway.gw.id}"
-	}
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = "${aws_internet_gateway.gw.id}"
+  }
 
-	tags {
+  tags {
     builtWith = "terraform"
-		Name      = "public"
-	}
+    Name      = "public.${var.environment}"
+  }
 
 }
 
@@ -151,8 +148,8 @@ resource "aws_route" "main" {
 resource "aws_eip" "eip" { }
 resource "aws_nat_gateway" "ngw" {
 
-	allocation_id = "${aws_eip.eip.id}"
-	subnet_id     = "${aws_subnet.public.id}"
+  allocation_id = "${aws_eip.eip.id}"
+  subnet_id     = "${aws_subnet.public.id}"
 
 }
 
@@ -164,46 +161,22 @@ resource "aws_nat_gateway" "ngw" {
 */
 resource "aws_route_table_association" "public" {
 
-	subnet_id = "${aws_subnet.public.id}"
-	route_table_id = "${aws_route_table.public.id}"
+  subnet_id = "${aws_subnet.public.id}"
+  route_table_id = "${aws_route_table.public.id}"
 
 }
 
-/*
-	Kubernetes cluster(s) will live in their own subnets
-
-  To distribute fault domains, create a subnet in each availability zone
-
-  Dependencies: aws_vpc.environment
-*/
-resource "aws_subnet" "kubernetes" {
-
-  count                   = "${length(data.aws_availability_zones.all.names)}"
-  vpc_id                  = "${aws_vpc.environment.id}"
-  cidr_block              = "${cidrsubnet(aws_vpc.environment.cidr_block, 7, "${count.index}")}"
-  availability_zone       = "${element(data.aws_availability_zones.all.names, count.index)}"
-  map_public_ip_on_launch = false
-
-  tags {
-    builtWith  = "terraform"
-    Name       = "k8s-${count.index}"
-  }
+/* Module outputs */
+output "vpc_id" {
+  value = "${aws_vpc.environment.id}"
 }
 
-/*
-  http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Scenario2.html
+output "vpc_main_route_table_id" {
+  value = "${aws_vpc.environment.main_route_table_id}"
+}
 
-  The subnets created above are private, so associate them with the main route
-  table for VPC
-
-  Dependencies: aws_vpc.environment, aws_subnet.kubernetes
-*/
-resource "aws_route_table_association" "kubernetes" {
-
-	count          = "${length(data.aws_availability_zones.all.names)}"
-	subnet_id      = "${element(aws_subnet.kubernetes.*.id, count.index)}"
-	route_table_id = "${aws_vpc.environment.main_route_table_id}"
-
+output "vpc_cidr_block" {
+  value = "${aws_vpc.environment.cidr_block}"
 }
 
 #resource "aws_security_group" "example" {
