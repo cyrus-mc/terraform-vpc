@@ -11,3 +11,5 @@ variable "cidr_block" {
 }
 
 variable "environment" {}
+
+variable "customer_gateway_id" {}

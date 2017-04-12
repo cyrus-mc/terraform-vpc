@@ -41,7 +41,6 @@ resource "aws_vpn_gateway" "vpn_gw" {
 
 }
 
-
 /*
   Create the VPN connection
 
@@ -51,13 +50,41 @@ resource "aws_vpn_connection" "vpn" {
 
   vpn_gateway_id      = "${aws_vpn_gateway.vpn_gw.id}"
 
-  customer_gateway_id = "cgw-859d469b"
+  customer_gateway_id = "${var.customer_gateway_id}"
   type                = "ipsec.1"
   static_routes_only  = true
 
   tags {
     builtWith = "terraform"
     Name      = "${var.environment}"
+  }
+
+}
+
+
+/*
+  http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Scenario2.html
+
+  Private subnet (this is a single point of failure)
+
+  Dependencies: aws_vpc.environment
+*/
+resource "aws_subnet" "private" {
+
+  count  = "${length(data.aws_availability_zones.all.names)}"
+  vpc_id = "${aws_vpc.environment.id}"
+
+  /* create subnet at the end of the cidr block */
+  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, 8, format("%d", 254 - count.index))}"
+  /* load balance over all availability zones */
+  availability_zone = "${element(data.aws_availability_zones.all.names, count.index)}"
+
+  /* private subnet, no public IPs */
+  map_public_ip_on_launch = false
+
+  tags {
+    builtWith = "terraform"
+    Name      = "private-${count.index}.${var.environment}"
   }
 
 }
@@ -161,8 +188,22 @@ resource "aws_nat_gateway" "ngw" {
 */
 resource "aws_route_table_association" "public" {
 
-  subnet_id = "${aws_subnet.public.id}"
+  subnet_id      = "${aws_subnet.public.id}"
   route_table_id = "${aws_route_table.public.id}"
+
+}
+
+/*
+  Associate the private subnet(s) with the main VPC route table
+
+  Dependencies: aws_subnet.private, aws_vpc.environment
+*/
+resource "aws_route_table_association" "private" {
+
+  count = "${length(data.aws_availability_zones.all.names)}"
+
+  subnet_id      = "${element(aws_subnet.private.*.id, count.index)}"
+  route_table_id = "${aws_vpc.environment.main_route_table_id}"
 
 }
 
@@ -177,6 +218,14 @@ output "vpc_main_route_table_id" {
 
 output "vpc_cidr_block" {
   value = "${aws_vpc.environment.cidr_block}"
+}
+
+output "private_subnet_id" {
+  value = [ "${aws_subnet.private.*.id}" ]
+}
+
+output "private_subnet_cidr" {
+  value = [ "${aws_subnet.private.*.cidr_block}" ]
 }
 
 #resource "aws_security_group" "example" {
