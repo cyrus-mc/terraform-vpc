@@ -228,6 +228,14 @@ output "private_subnet_cidr" {
   value = [ "${aws_subnet.private.*.cidr_block}" ]
 }
 
+output "public_subnet_id" {
+  value = [ "${aws_subnet.public.*.id}" ]
+}
+
+output "public_subnet_cidr" {
+  value = [ "${aws_subnet.public.*.cidr_block}" ]
+}
+
 #resource "aws_security_group" "example" {
 #  name = "k8s-etcd-sg"
 #  vpc_id  = "${aws_vpc.environment.id}"
