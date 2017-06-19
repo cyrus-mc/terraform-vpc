@@ -7,8 +7,12 @@ variable "region" {
 
 variable "cidr_block" {
   description = "VPC CIDR block"
-
 }
+
+variable "cidr_block_bits" {}
+
+variable "cidr_block_start" {}
+variable "cidr_block_end" {}
 
 variable "environment" {}
 

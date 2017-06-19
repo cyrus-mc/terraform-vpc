@@ -14,9 +14,9 @@ resource "aws_vpc" "environment" {
   enable_dns_hostnames = "true"
 
   /* prevent deletion so we don't lose VPN connection setup */
-  #lifecycle {
-  #  prevent_destroy = "true"
-  #}
+  lifecycle {
+    prevent_destroy = "true"
+  }
 
   tags {
     builtWith = "terraform"
@@ -61,7 +61,6 @@ resource "aws_vpn_connection" "vpn" {
 
 }
 
-
 /*
   http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Scenario2.html
 
@@ -74,8 +73,9 @@ resource "aws_subnet" "private" {
   count  = "${length(data.aws_availability_zones.all.names)}"
   vpc_id = "${aws_vpc.environment.id}"
 
-  /* create subnet at the end of the cidr block */
-  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, 8, format("%d", 254 - count.index))}"
+  /* create subnet at the specified location (cidr_block, cidr_block_bits, cidr_block_start) */
+  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, format("%d", var.cidr_block_start + count.index))}"
+
   /* load balance over all availability zones */
   availability_zone = "${element(data.aws_availability_zones.all.names, count.index)}"
 
@@ -101,7 +101,7 @@ resource "aws_subnet" "public" {
   vpc_id = "${aws_vpc.environment.id}"
 
   /* create subnet at the end of the cidr block */
-  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, 8, 255)}"
+  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, var.cidr_block_end)}"
   /* place in first availability zone */
   availability_zone	= "${element(data.aws_availability_zones.all.names, 1)}"
 
@@ -206,48 +206,3 @@ resource "aws_route_table_association" "private" {
   route_table_id = "${aws_vpc.environment.main_route_table_id}"
 
 }
-
-/* Module outputs */
-output "vpc_id" {
-  value = "${aws_vpc.environment.id}"
-}
-
-output "vpc_main_route_table_id" {
-  value = "${aws_vpc.environment.main_route_table_id}"
-}
-
-output "vpc_cidr_block" {
-  value = "${aws_vpc.environment.cidr_block}"
-}
-
-output "private_subnet_id" {
-  value = [ "${aws_subnet.private.*.id}" ]
-}
-
-output "private_subnet_cidr" {
-  value = [ "${aws_subnet.private.*.cidr_block}" ]
-}
-
-output "public_subnet_id" {
-  value = [ "${aws_subnet.public.*.id}" ]
-}
-
-output "public_subnet_cidr" {
-  value = [ "${aws_subnet.public.*.cidr_block}" ]
-}
-
-#resource "aws_security_group" "example" {
-#  name = "k8s-etcd-sg"
-#  vpc_id  = "${aws_vpc.environment.id}"
-#
-#  ingress {
-#    from_port = 0
-#    to_port   = 0
-#    protocol = "-1"
-#    cidr_blocks = [ "0.0.0.0/0" ]
-#  }
-
-#  lifecycle {
-#    create_before_destroy = true
-#  }
-#}
