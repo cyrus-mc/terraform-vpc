@@ -17,3 +17,5 @@ variable "cidr_block_end" {}
 variable "environment" {}
 
 variable "customer_gateway_id" {}
+
+variable "key_name" {}

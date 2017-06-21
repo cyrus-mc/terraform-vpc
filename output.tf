@@ -4,7 +4,7 @@ output "vpc_id" {
 }
 
 output "vpc_main_rt_id" {
-  value = "${aws_vpc.environment.main_rt_id}"
+  value = "${aws_vpc.environment.main_route_table_id}"
 }
 
 output "vpc_cidr_block" {
@@ -27,4 +27,8 @@ output "public_subnet_id" {
 
 output "public_subnet_cidr" {
   value = [ "${aws_subnet.public.*.cidr_block}" ]
+}
+
+output "nat_instance_id" {
+  value = "{aws_instance.nat_instance.id}"
 }

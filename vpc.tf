@@ -14,9 +14,9 @@ resource "aws_vpc" "environment" {
   enable_dns_hostnames = "true"
 
   /* prevent deletion so we don't lose VPN connection setup */
-  lifecycle {
-    prevent_destroy = "true"
-  }
+#  lifecycle {
+#    prevent_destroy = "true"
+#  }
 
   tags {
     builtWith = "terraform"
@@ -153,7 +153,7 @@ resource "aws_route_table" "public" {
 }
 
 /*
-	Main route table for the VPC with default route being the NAT gateway
+	Main route table for the VPC with default route being the NAT instance
 
 	Dependencies: aws_vpc.environment, aws_net_gateway.ngw
 */
@@ -163,7 +163,7 @@ resource "aws_route" "main" {
   route_table_id = "${aws_vpc.environment.main_route_table_id}"
 
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = "${aws_nat_gateway.ngw.id}"
+  instance_id            = "${aws_instance.nat_instance.id}"
 
 }
 
@@ -172,13 +172,13 @@ resource "aws_route" "main" {
 
   Dependencies: aws_eip.eip, aws_subnet.public
 */
-resource "aws_eip" "eip" { }
-resource "aws_nat_gateway" "ngw" {
+#resource "aws_eip" "eip" { }
+#resource "aws_nat_gateway" "ngw" {
 
-  allocation_id = "${aws_eip.eip.id}"
-  subnet_id     = "${aws_subnet.public.id}"
-
-}
+#  allocation_id = "${aws_eip.eip.id}"
+#  subnet_id     = "${aws_subnet.public.id}"
+#
+#}
 
 
 /*
@@ -204,5 +204,41 @@ resource "aws_route_table_association" "private" {
 
   subnet_id      = "${element(aws_subnet.private.*.id, count.index)}"
   route_table_id = "${aws_vpc.environment.main_route_table_id}"
+
+}
+
+/*
+  VPC Security Groups
+
+  NAT Instance
+*/
+resource "aws_security_group" "nat-instance" {
+
+  name = "nat-instance-${var.environment}"
+
+  description = "Define inbound and outbound traffic for NAT instance"
+
+  /* link to the correct VPC */
+  vpc_id = "${aws_vpc.environment.id}"
+
+  /*
+    Define ingress rules (only allow from our VPC)
+  */
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [ "${aws_vpc.environment.cidr_block}" ]
+  }
+
+  /*
+    Define egress rules
+  */
+  egress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    cidr_blocks = [ "0.0.0.0/0" ]
+  }
 
 }
