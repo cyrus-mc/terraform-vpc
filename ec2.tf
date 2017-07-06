@@ -1,5 +1,8 @@
 resource "aws_instance" "nat_instance" {
   
+  /* only required if deploying into AWS GovCloud region */
+  count = "${var.aws_govcloud}"
+
   /* Amazon Linux AMI */
   ami           = "ami-6ae2660b"
   instance_type = "t2.large"

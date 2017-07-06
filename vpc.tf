@@ -171,15 +171,22 @@ resource "aws_route" "main" {
   Provision a NAT gateway
 
   Dependencies: aws_eip.eip, aws_subnet.public
+
+  Not applicable for AWS GovCloud region  
 */
-#resource "aws_eip" "eip" { }
-#resource "aws_nat_gateway" "ngw" {
+resource "aws_eip" "eip" { 
 
-#  allocation_id = "${aws_eip.eip.id}"
-#  subnet_id     = "${aws_subnet.public.id}"
-#
-#}
+  count = "${1 - var.aws_govcloud}"
 
+}
+resource "aws_nat_gateway" "ngw" {
+
+  count         = "${1 - var.aws_govcloud}"
+
+  allocation_id = "${aws_eip.eip.id}"
+  subnet_id     = "${aws_subnet.public.id}"
+
+}
 
 /*
   Associate the public subnet with the above route table
@@ -213,6 +220,9 @@ resource "aws_route_table_association" "private" {
   NAT Instance
 */
 resource "aws_security_group" "nat-instance" {
+
+  /* only required if deploying into AWS GovCloud region */
+  count = "${var.aws_govcloud}"
 
   name = "nat-instance-${var.environment}"
 

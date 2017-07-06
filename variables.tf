@@ -19,3 +19,8 @@ variable "environment" {}
 variable "customer_gateway_id" {}
 
 variable "key_name" {}
+
+variable "aws_govcloud" {
+  description = "Deployment into AWS GovCloud region"
+  default     = false
+}
