@@ -157,7 +157,20 @@ resource "aws_route_table" "public" {
 
 	Dependencies: aws_vpc.environment, aws_net_gateway.ngw
 */
-resource "aws_route" "main" {
+resource "aws_route" main {
+
+  /* only required if deploying into non-GovCloud region */
+  count = "${1 - var.aws_govcloud}"
+
+  /* main route table associated with our VPC */
+  nat_gateway_id         = "${aws_nat_gateway.ngw.id}"
+
+}
+
+resource "aws_route" "main-govcloud" {
+
+  /* only required if deploying into AWS GovCloud region */
+  count = "${var.aws_govcloud}"
 
   /* main route table associated with our VPC */
   route_table_id = "${aws_vpc.environment.main_route_table_id}"
@@ -166,6 +179,7 @@ resource "aws_route" "main" {
   instance_id            = "${aws_instance.nat_instance.id}"
 
 }
+
 
 /*
   Provision a NAT gateway
