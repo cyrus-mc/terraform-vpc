@@ -163,6 +163,9 @@ resource "aws_route" main {
   count = "${1 - var.aws_govcloud}"
 
   /* main route table associated with our VPC */
+  route_table_id = "${aws_vpc.environment.main_route_table_id}"
+
+  /* main route table associated with our VPC */
   nat_gateway_id         = "${aws_nat_gateway.ngw.id}"
 
 }
