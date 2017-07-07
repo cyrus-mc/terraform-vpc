@@ -14,9 +14,9 @@ resource "aws_vpc" "environment" {
   enable_dns_hostnames = "true"
 
   /* prevent deletion so we don't lose VPN connection setup */
-  #lifecycle {
-  #  prevent_destroy = "true"
-  #}
+#  lifecycle {
+#    prevent_destroy = "true"
+#  }
 
   tags {
     builtWith = "terraform"
@@ -61,7 +61,6 @@ resource "aws_vpn_connection" "vpn" {
 
 }
 
-
 /*
   http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Scenario2.html
 
@@ -74,8 +73,9 @@ resource "aws_subnet" "private" {
   count  = "${length(data.aws_availability_zones.all.names)}"
   vpc_id = "${aws_vpc.environment.id}"
 
-  /* create subnet at the end of the cidr block */
-  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, 8, format("%d", 254 - count.index))}"
+  /* create subnet at the specified location (cidr_block, cidr_block_bits, cidr_block_start) */
+  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, format("%d", var.cidr_block_start + count.index))}"
+
   /* load balance over all availability zones */
   availability_zone = "${element(data.aws_availability_zones.all.names, count.index)}"
 
@@ -101,7 +101,7 @@ resource "aws_subnet" "public" {
   vpc_id = "${aws_vpc.environment.id}"
 
   /* create subnet at the end of the cidr block */
-  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, 8, 255)}"
+  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, var.cidr_block_end)}"
   /* place in first availability zone */
   availability_zone	= "${element(data.aws_availability_zones.all.names, 1)}"
 
@@ -153,33 +153,57 @@ resource "aws_route_table" "public" {
 }
 
 /*
-	Main route table for the VPC with default route being the NAT gateway
+	Main route table for the VPC with default route being the NAT instance
 
 	Dependencies: aws_vpc.environment, aws_net_gateway.ngw
 */
-resource "aws_route" "main" {
+resource "aws_route" main {
+
+  /* only required if deploying into non-GovCloud region */
+  count = "${1 - var.aws_govcloud}"
+
+  /* main route table associated with our VPC */
+  route_table_id = "${aws_vpc.environment.main_route_table_id}"
+
+  /* main route table associated with our VPC */
+  nat_gateway_id         = "${aws_nat_gateway.ngw.id}"
+
+}
+
+resource "aws_route" "main-govcloud" {
+
+  /* only required if deploying into AWS GovCloud region */
+  count = "${var.aws_govcloud}"
 
   /* main route table associated with our VPC */
   route_table_id = "${aws_vpc.environment.main_route_table_id}"
 
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = "${aws_nat_gateway.ngw.id}"
+  instance_id            = "${aws_instance.nat_instance.id}"
 
 }
+
 
 /*
   Provision a NAT gateway
 
   Dependencies: aws_eip.eip, aws_subnet.public
+
+  Not applicable for AWS GovCloud region  
 */
-resource "aws_eip" "eip" { }
+resource "aws_eip" "eip" { 
+
+  count = "${1 - var.aws_govcloud}"
+
+}
 resource "aws_nat_gateway" "ngw" {
+
+  count         = "${1 - var.aws_govcloud}"
 
   allocation_id = "${aws_eip.eip.id}"
   subnet_id     = "${aws_subnet.public.id}"
 
 }
-
 
 /*
   Associate the public subnet with the above route table
@@ -207,47 +231,41 @@ resource "aws_route_table_association" "private" {
 
 }
 
-/* Module outputs */
-output "vpc_id" {
-  value = "${aws_vpc.environment.id}"
+/*
+  VPC Security Groups
+
+  NAT Instance
+*/
+resource "aws_security_group" "nat-instance" {
+
+  /* only required if deploying into AWS GovCloud region */
+  count = "${var.aws_govcloud}"
+
+  name = "nat-instance-${var.environment}"
+
+  description = "Define inbound and outbound traffic for NAT instance"
+
+  /* link to the correct VPC */
+  vpc_id = "${aws_vpc.environment.id}"
+
+  /*
+    Define ingress rules (only allow from our VPC)
+  */
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [ "${aws_vpc.environment.cidr_block}" ]
+  }
+
+  /*
+    Define egress rules
+  */
+  egress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    cidr_blocks = [ "0.0.0.0/0" ]
+  }
+
 }
-
-output "vpc_main_route_table_id" {
-  value = "${aws_vpc.environment.main_route_table_id}"
-}
-
-output "vpc_cidr_block" {
-  value = "${aws_vpc.environment.cidr_block}"
-}
-
-output "private_subnet_id" {
-  value = [ "${aws_subnet.private.*.id}" ]
-}
-
-output "private_subnet_cidr" {
-  value = [ "${aws_subnet.private.*.cidr_block}" ]
-}
-
-output "public_subnet_id" {
-  value = [ "${aws_subnet.public.*.id}" ]
-}
-
-output "public_subnet_cidr" {
-  value = [ "${aws_subnet.public.*.cidr_block}" ]
-}
-
-#resource "aws_security_group" "example" {
-#  name = "k8s-etcd-sg"
-#  vpc_id  = "${aws_vpc.environment.id}"
-#
-#  ingress {
-#    from_port = 0
-#    to_port   = 0
-#    protocol = "-1"
-#    cidr_blocks = [ "0.0.0.0/0" ]
-#  }
-
-#  lifecycle {
-#    create_before_destroy = true
-#  }
-#}
