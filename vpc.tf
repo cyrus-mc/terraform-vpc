@@ -40,6 +40,14 @@ resource "aws_default_security_group" "default" {
     cidr_blocks = [ "${var.cidr_block}" ]
   }
 
+  /* allow all outbound traffic */
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = -1
+    cidr_blocks = [ "0.0.0.0/0" ]
+  }
+
 }
 
 /*
