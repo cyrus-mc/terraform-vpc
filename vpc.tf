@@ -26,6 +26,23 @@ resource "aws_vpc" "environment" {
 }
 
 /*
+  Modify the default security group created as part of the VPC
+*/
+resource "aws_default_security_group" "default" {
+
+  vpc_id = "${aws_vpc.environment.id}"
+
+  /* allow all traffic from within the VPC */
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = -1
+    cidr_blocks = [ "${var.cidr_block}" ]
+  }
+
+}
+
+/*
   Create a Virtual Private Gateway
 
   Dependencies: aws_vpc.environment
@@ -74,7 +91,7 @@ resource "aws_subnet" "private" {
   vpc_id = "${aws_vpc.environment.id}"
 
   /* create subnet at the specified location (cidr_block, cidr_block_bits, cidr_block_start) */
-  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, format("%d", var.cidr_block_start + count.index))}"
+  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, format("%d", var.cidr_block_start + ( count.index * - 1)))}"
 
   /* load balance over all availability zones */
   availability_zone = "${element(data.aws_availability_zones.all.names, count.index)}"
@@ -165,6 +182,7 @@ resource "aws_route" main {
   /* main route table associated with our VPC */
   route_table_id = "${aws_vpc.environment.main_route_table_id}"
 
+  destination_cidr_block = "0.0.0.0/0"
   /* main route table associated with our VPC */
   nat_gateway_id         = "${aws_nat_gateway.ngw.id}"
 
