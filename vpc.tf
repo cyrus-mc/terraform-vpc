@@ -18,10 +18,7 @@ resource "aws_vpc" "environment" {
 #    prevent_destroy = "true"
 #  }
 
-  tags {
-    builtWith = "terraform"
-    Name      = "${var.environment}"
-  }
+  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}", 
 
 }
 
@@ -48,6 +45,8 @@ resource "aws_default_security_group" "default" {
     cidr_blocks = [ "0.0.0.0/0" ]
   }
 
+  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
+
 }
 
 /*
@@ -59,10 +58,7 @@ resource "aws_vpn_gateway" "vpn_gw" {
 
   vpc_id = "${aws_vpc.environment.id}"
 
-  tags {
-    builtWith = "terraform"
-    Name      = "${var.environment}"
-  }
+  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
 
 }
 
@@ -79,10 +75,7 @@ resource "aws_vpn_connection" "vpn" {
   type                = "ipsec.1"
   static_routes_only  = true
 
-  tags {
-    builtWith = "terraform"
-    Name      = "${var.environment}"
-  }
+  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
 
 }
 
@@ -107,10 +100,8 @@ resource "aws_subnet" "private" {
   /* private subnet, no public IPs */
   map_public_ip_on_launch = false
 
-  tags {
-    builtWith = "terraform"
-    Name      = "private-${count.index}.${var.environment}"
-  }
+  /* merge all the tags together */
+  tags = "${merge(var.tags, var.private_subnet_tags, map("Name", format("private-%d.%s", count.index, var.environment)), map("builtWith", "terraform"))}"
 
 }
 
@@ -133,10 +124,8 @@ resource "aws_subnet" "public" {
   /* instances in the public zone get an IP address */
   map_public_ip_on_launch	= true
 
-  tags {
-    builtWith = "terraform"
-    Name      = "public.${var.environment}"
-  }
+  /* merge all the tags together */
+  tags = "${merge(var.tags, var.public_subnet_tags, map("Name", format("public.%s", var.environment)), map("builtWith", "terraform"))}"
 
 }
 
@@ -149,10 +138,8 @@ resource "aws_internet_gateway" "gw" {
 
   vpc_id = "${aws_vpc.environment.id}"
 
-  tags {
-    builtWith  = "terraform"
-    Name       = "${var.environment}"
-  }
+  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
+
 }
 
 /*
@@ -170,10 +157,7 @@ resource "aws_route_table" "public" {
     gateway_id = "${aws_internet_gateway.gw.id}"
   }
 
-  tags {
-    builtWith = "terraform"
-    Name      = "public.${var.environment}"
-  }
+  tags = "${merge(var.tags, map("Name", format("public.%s", var.environment)), map("builtWith", "terraform"))}",
 
 }
 
@@ -222,6 +206,7 @@ resource "aws_eip" "eip" {
   count = "${1 - var.aws_govcloud}"
 
 }
+
 resource "aws_nat_gateway" "ngw" {
 
   count         = "${1 - var.aws_govcloud}"
@@ -293,5 +278,8 @@ resource "aws_security_group" "nat-instance" {
     protocol  = "-1"
     cidr_blocks = [ "0.0.0.0/0" ]
   }
+
+  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
+
 
 }

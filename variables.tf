@@ -21,6 +21,26 @@ variable "cidr_block_end" {
   default = "255"
 }
 
+variable "tags" {
+  description = "A map of tags to all to all resources"
+  default     = {}
+}
+
+/*
+  This allows us to add additional tags to the public subnet.
+
+  Needed for Kubernetes, as an example, to tag with KubernetesCluster.
+*/
+variable "public_subnet_tags" {
+  description = "Additional tags for public subnets"
+  default     = {}
+}
+
+variable "private_subnet_tags" {
+  description = "Additional tags for private subnets"
+  default     = {}
+}
+
 variable "environment" {}
 
 variable "customer_gateway_id" {}
