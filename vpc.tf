@@ -92,7 +92,7 @@ resource "aws_subnet" "private" {
   vpc_id = "${aws_vpc.environment.id}"
 
   /* create subnet at the specified location (cidr_block, cidr_block_bits, cidr_block_start) */
-  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, format("%d", var.cidr_block_start + ( count.index * - 1)))}"
+  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(data.aws_availability_zones.all.names) + count.index)}"
 
   /* load balance over all availability zones */
   availability_zone = "${element(data.aws_availability_zones.all.names, count.index)}"
@@ -114,12 +114,13 @@ resource "aws_subnet" "private" {
 */
 resource "aws_subnet" "public" {
 
+  count  = "${length(data.aws_availability_zones.all.names)}"
   vpc_id = "${aws_vpc.environment.id}"
 
   /* create subnet at the end of the cidr block */
-  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, var.cidr_block_end)}"
+  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, count.index)}"
   /* place in first availability zone */
-  availability_zone	= "${element(data.aws_availability_zones.all.names, 1)}"
+  availability_zone	= "${element(data.aws_availability_zones.all.names, count.index)}"
 
   /* instances in the public zone get an IP address */
   map_public_ip_on_launch	= true
@@ -212,7 +213,9 @@ resource "aws_nat_gateway" "ngw" {
   count         = "${1 - var.aws_govcloud}"
 
   allocation_id = "${aws_eip.eip.id}"
-  subnet_id     = "${aws_subnet.public.id}"
+  #subnet_id     = "${aws_subnet.public.id}"
+  subnet_id      = "${element(aws_subnet.public.*.id, 1)}"
+
 
 }
 
@@ -223,7 +226,8 @@ resource "aws_nat_gateway" "ngw" {
 */
 resource "aws_route_table_association" "public" {
 
-  subnet_id      = "${aws_subnet.public.id}"
+  #subnet_id      = "${aws_subnet.public.id}"
+  subnet_id      = "${element(aws_subnet.public.*.id, 1)}"
   route_table_id = "${aws_route_table.public.id}"
 
 }
