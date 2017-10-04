@@ -13,7 +13,7 @@ resource "aws_instance" "nat_instance" {
   /* define network details about the instance (subnet, private IP) */
   subnet_id      = "${element(aws_subnet.public.*.id, 1)}"
 
-  private_ip                  = "${cidrhost(aws_subnet.public.cidr_block, 10)}"
+  private_ip                  = "${cidrhost(element(aws_subnet.public.*.cidr_block, 1), 10)}"
   associate_public_ip_address = "true"
   vpc_security_group_ids      = [ "${aws_security_group.nat-instance.id}" ]
 
