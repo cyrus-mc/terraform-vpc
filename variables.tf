@@ -64,3 +64,8 @@ variable "peering_info" {
   description = "VPC tag Name to Peer with"
   type = "list"
 }
+
+variable "enable_kubernetes" {
+  description = "Enable or disable Kubernetes subnet creation"
+  default     = false
+}

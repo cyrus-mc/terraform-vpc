@@ -132,6 +132,32 @@ resource "aws_subnet" "public" {
 
 }
 
+resource "aws_subnet" "kubernetes" {
+
+  count = "${var.enable_kubernetes * length(data.aws_availability_zones.all.names)}"
+  vpc_id = "${aws_vpc.environment.id}"
+
+  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(data.aws_availability_zones.all.names) * 2 + count.index)}"
+  availability_zone = "${element(data.aws_availability_zones.all.names, count.index)}"
+
+  map_public_ip_on_launch = false
+
+  /* merge all the tags together */
+  tags = "${merge(var.tags, var.public_subnet_tags, map("Name", format("kubernetes-%d.%s", count.index, var.name)), map("builtWith", "terraform"), map("KubernetesCluster", "${var.name}"))}"
+
+
+}
+
+resource "aws_route_table_association" "kubernetes" {
+
+  count = "${var.enable_kubernetes * length(data.aws_availability_zones.all.names)}"
+
+  /* grab each subnet created */
+  subnet_id      = "${element(aws_subnet.kubernetes.*.id, count.index)}"
+  route_table_id = "${aws_vpc.environment.main_route_table_id}"
+
+}
+
 /*
   Create the internet gateway for this VPC
 
