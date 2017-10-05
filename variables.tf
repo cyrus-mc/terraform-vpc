@@ -1,24 +1,14 @@
-# data source used to query all availability zones
-data "aws_availability_zones" "all" {}
+variable "region" { description = "Region where VPC will be created" }
 
-variable "region" {
-  description = "Region where VPC will be created"
+variable "name" {
+  description = "Descriptive name for the VPC"
 }
 
-variable "cidr_block" {
-  description = "VPC CIDR block"
-}
+variable "cidr_block" { description = "CIDR block to allocate to the VPC" }
 
 variable "cidr_block_bits" {
+  description = "Variable subnet bits"
   default = "8"
-}
-
-variable "cidr_block_start" {
-  default = "254"
-}
-
-variable "cidr_block_end" {
-  default = "255"
 }
 
 variable "tags" {
@@ -42,27 +32,35 @@ variable "private_subnet_tags" {
 }
 
 variable "enable_dns" {
+  description = "Enable or disable DNS support and DNS hostnames"
   default = true
 }
 
 variable "create_vgw" {
-  description = "Create a Virtual Private Gateway"
+  description = "Enabled or isable creation of a Virtual Private Gateway (VGW)"
   default = true
 }
 
-variable "environment" {}
+variable "customer_gateway_id" {
+  description = "If create_vgw = true, the Customer Gateway Device (GGW) to use"
+}
 
-variable "customer_gateway_id" {}
+variable "govcloud" {
+  description = "Enable or disable GovCloud support"
+  default     = false
+}
 
 variable "key_name" {
-  description = "Only needed for GovCloud, key to use for NAT instance"
+  description = "EC2 SSH key for NAT instance (only if govcloud = true)"
   default     = ""
 }
 
+/*
+  The following variable is used to setup VPC peering.
+
+  Simply list the VPC (by tag Name) to setup VPC Peering
+*/
 variable "peering_info" {
+  description = "VPC tag Name to Peer with"
   type = "list"
-}
-variable "aws_govcloud" {
-  description = "Deployment into AWS GovCloud region"
-  default     = false
 }

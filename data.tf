@@ -1,4 +1,9 @@
 /*
+  Query all the availability zones
+*/
+data "aws_availability_zones" "all" {}
+
+/*
   Query information of VPC to peer with
 */
 data "aws_vpc" "peering" {

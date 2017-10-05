@@ -1,7 +1,7 @@
 resource "aws_instance" "nat_instance" {
   
   /* only required if deploying into AWS GovCloud region */
-  count = "${var.aws_govcloud}"
+  count = "${var.govcloud}"
 
   /* Amazon Linux AMI */
   ami           = "ami-6ae2660b"
@@ -22,7 +22,7 @@ resource "aws_instance" "nat_instance" {
 
   tags {
     builtWith  = "terraform"
-    Name       = "nat-instance"
+    Name       = "nat-instance:${var.name}"
     visibility = "public"
   }
 

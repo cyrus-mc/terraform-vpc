@@ -17,7 +17,7 @@ resource "aws_vpc" "environment" {
     prevent_destroy = "true"
   }
 
-  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}", 
+  tags = "${merge(var.tags, map("Name", format("%s", var.name)), map("builtWith", "terraform"))}"
 
 }
 
@@ -44,7 +44,7 @@ resource "aws_default_security_group" "default" {
     cidr_blocks = [ "0.0.0.0/0" ]
   }
 
-  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
+  tags = "${merge(var.tags, map("Name", format("%s", var.name)), map("builtWith", "terraform"))}"
 
 }
 
@@ -59,7 +59,7 @@ resource "aws_vpn_gateway" "vpn_gw" {
 
   vpc_id = "${aws_vpc.environment.id}"
 
-  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
+  tags = "${merge(var.tags, map("Name", format("%s", var.name)), map("builtWith", "terraform"))}"
 
 }
 
@@ -78,7 +78,7 @@ resource "aws_vpn_connection" "vpn" {
   type                = "ipsec.1"
   static_routes_only  = true
 
-  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
+  tags = "${merge(var.tags, map("Name", format("%s", var.name)), map("builtWith", "terraform"))}"
 
 }
 
@@ -94,7 +94,6 @@ resource "aws_subnet" "private" {
   count  = "${length(data.aws_availability_zones.all.names)}"
   vpc_id = "${aws_vpc.environment.id}"
 
-  /* create subnet at the specified location (cidr_block, cidr_block_bits, cidr_block_start) */
   cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(data.aws_availability_zones.all.names) + count.index)}"
 
   /* load balance over all availability zones */
@@ -104,7 +103,7 @@ resource "aws_subnet" "private" {
   map_public_ip_on_launch = false
 
   /* merge all the tags together */
-  tags = "${merge(var.tags, var.private_subnet_tags, map("Name", format("private-%d.%s", count.index, var.environment)), map("builtWith", "terraform"))}"
+  tags = "${merge(var.tags, var.private_subnet_tags, map("Name", format("private-%d.%s", count.index, var.name)), map("builtWith", "terraform"))}"
 
 }
 
@@ -129,7 +128,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch	= true
 
   /* merge all the tags together */
-  tags = "${merge(var.tags, var.public_subnet_tags, map("Name", format("public.%s", var.environment)), map("builtWith", "terraform"))}"
+  tags = "${merge(var.tags, var.public_subnet_tags, map("Name", format("public.%s", var.name)), map("builtWith", "terraform"))}"
 
 }
 
@@ -142,7 +141,7 @@ resource "aws_internet_gateway" "gw" {
 
   vpc_id = "${aws_vpc.environment.id}"
 
-  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
+  tags = "${merge(var.tags, map("Name", format("%s", var.name)), map("builtWith", "terraform"))}",
 
 }
 
@@ -161,7 +160,7 @@ resource "aws_route_table" "public" {
     gateway_id = "${aws_internet_gateway.gw.id}"
   }
 
-  tags = "${merge(var.tags, map("Name", format("public.%s", var.environment)), map("builtWith", "terraform"))}",
+  tags = "${merge(var.tags, map("Name", format("public.%s", var.name)), map("builtWith", "terraform"))}",
 
 }
 
@@ -173,7 +172,7 @@ resource "aws_route_table" "public" {
 resource "aws_route" main {
 
   /* only required if deploying into non-GovCloud region */
-  count = "${1 - var.aws_govcloud}"
+  count = "${1 - var.govcloud}"
 
   /* main route table associated with our VPC */
   route_table_id = "${aws_vpc.environment.main_route_table_id}"
@@ -187,7 +186,7 @@ resource "aws_route" main {
 resource "aws_route" "main-govcloud" {
 
   /* only required if deploying into AWS GovCloud region */
-  count = "${var.aws_govcloud}"
+  count = "${var.govcloud}"
 
   /* main route table associated with our VPC */
   route_table_id = "${aws_vpc.environment.main_route_table_id}"
@@ -207,13 +206,13 @@ resource "aws_route" "main-govcloud" {
 */
 resource "aws_eip" "eip" { 
 
-  count = "${1 - var.aws_govcloud}"
+  count = "${1 - var.govcloud}"
 
 }
 
 resource "aws_nat_gateway" "ngw" {
 
-  count         = "${1 - var.aws_govcloud}"
+  count         = "${1 - var.govcloud}"
 
   allocation_id = "${aws_eip.eip.id}"
   #subnet_id     = "${aws_subnet.public.id}"
@@ -257,9 +256,9 @@ resource "aws_route_table_association" "private" {
 resource "aws_security_group" "nat-instance" {
 
   /* only required if deploying into AWS GovCloud region */
-  count = "${var.aws_govcloud}"
+  count = "${var.govcloud}"
 
-  name = "nat-instance-${var.environment}"
+  name = "nat-instance-${var.name}"
 
   description = "Define inbound and outbound traffic for NAT instance"
 
@@ -286,7 +285,7 @@ resource "aws_security_group" "nat-instance" {
     cidr_blocks = [ "0.0.0.0/0" ]
   }
 
-  tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
+  tags = "${merge(var.tags, map("Name", format("%s", var.name)), map("builtWith", "terraform"))}",
 
 
 }
@@ -313,7 +312,7 @@ resource "aws_vpc_peering_connection" "requestor" {
   auto_accept = true
 
   tags {
-    Name = "${var.environment}:${element(var.peering_info, count.index)}"
+    Name = "${var.name}:${element(var.peering_info, count.index)}"
   }
 
 }
