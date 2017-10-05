@@ -41,6 +41,15 @@ variable "private_subnet_tags" {
   default     = {}
 }
 
+variable "enable_dns" {
+  default = true
+}
+
+variable "create_vgw" {
+  description = "Create a Virtual Private Gateway"
+  default = true
+}
+
 variable "environment" {}
 
 variable "customer_gateway_id" {}
@@ -50,6 +59,9 @@ variable "key_name" {
   default     = ""
 }
 
+variable "peering_info" {
+  type = "list"
+}
 variable "aws_govcloud" {
   description = "Deployment into AWS GovCloud region"
   default     = false

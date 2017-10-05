@@ -10,13 +10,12 @@ resource "aws_vpc" "environment" {
   /*
     Enable DNS support and DNS hostnames to support private hosted zones
   */
-  enable_dns_support   = "true"
-  enable_dns_hostnames = "true"
+  enable_dns_support   = "${var.enable_dns}"
+  enable_dns_hostnames = "${var.enable_dns}"
 
-  /* prevent deletion so we don't lose VPN connection setup */
-#  lifecycle {
-#    prevent_destroy = "true"
-#  }
+  lifecycle {
+    prevent_destroy = "true"
+  }
 
   tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}", 
 
@@ -56,6 +55,8 @@ resource "aws_default_security_group" "default" {
 */
 resource "aws_vpn_gateway" "vpn_gw" {
 
+  count = "${var.create_vgw}"
+
   vpc_id = "${aws_vpc.environment.id}"
 
   tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
@@ -68,6 +69,8 @@ resource "aws_vpn_gateway" "vpn_gw" {
   Dependencies: aws_vpn_gateway.vpn_gw
 */
 resource "aws_vpn_connection" "vpn" {
+
+  count = "${var.create_vgw}"
 
   vpn_gateway_id      = "${aws_vpn_gateway.vpn_gw.id}"
 
@@ -285,5 +288,58 @@ resource "aws_security_group" "nat-instance" {
 
   tags = "${merge(var.tags, map("Name", format("%s", var.environment)), map("builtWith", "terraform"))}",
 
+
+}
+
+/*
+  Setup any peering requested
+*/
+resource "aws_vpc_peering_connection" "requestor" {
+
+  count = "${length(var.peering_info)}"
+
+  peer_vpc_id = "${element(data.aws_vpc.peering.*.id, count.index)}"
+  vpc_id      = "${aws_vpc.environment.id}"
+
+  accepter {
+    allow_remote_vpc_dns_resolution = "${var.enable_dns}"
+  }
+
+  requester {
+    allow_remote_vpc_dns_resolution = "${var.enable_dns}"
+  }
+
+  /* auto-accept the peering request */
+  auto_accept = true
+
+  tags {
+    Name = "${var.environment}:${element(var.peering_info, count.index)}"
+  }
+
+}
+
+resource "aws_route" "peer-main" {
+
+  count = "${length(var.peering_info)}"
+
+  /* update only the main route table */
+  route_table_id            = "${aws_vpc.environment.main_route_table_id}"
+  vpc_peering_connection_id = "${aws_vpc_peering_connection.requestor.id}"
+  destination_cidr_block    = "${element(data.aws_vpc.peering.*.cidr_block, count.index)}"
+
+  depends_on = [ "aws_vpc_peering_connection.requestor" ]
+
+}
+
+resource "aws_route" "peer-secondary" {
+
+  count = "${length(var.peering_info)}"
+
+  /* update only the main route table */
+  route_table_id            = "${element(data.aws_route_table.peering.*.id, count.index)}"
+  vpc_peering_connection_id = "${aws_vpc_peering_connection.requestor.id}"
+  destination_cidr_block    = "${aws_vpc.environment.cidr_block}"
+
+  depends_on = [ "aws_vpc_peering_connection.requestor" ]
 
 }
