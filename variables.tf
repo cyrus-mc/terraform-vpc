@@ -62,7 +62,8 @@ variable "key_name" {
 */
 variable "peering_info" {
   description = "VPC tag Name to Peer with"
-  type = "list"
+  type        = "list"
+  default     = []
 }
 
 variable "enable_kubernetes" {
