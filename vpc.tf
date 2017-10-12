@@ -3,6 +3,22 @@
 
   Dependencies: none
 */
+
+locals {
+  /*
+    Select the zones based on whether they are passed in, or query all zones
+
+    NOTE: work around as conditional logic does not work with lists or maps
+  */
+  availability_zones = [ "${split(",", length(var.availability_zones) == 0 ? join(",", data.aws_availability_zones.get_all.names) : join(",", var.availability_zones))}" ]
+
+  /*
+    Use passed in public subnets or generate
+  */
+  private_subnets = [ "${split(",", length(var.private_subnets) == 0 ? join(",", null_resource.generated_private_subnets.*.triggers.cidr_block) : join(",", var.private_subnets))}" ]
+  public_subnets = [ "${split(",", length(var.public_subnets) == 0 ? join(",", null_resource.generated_public_subnets.*.triggers.cidr_block) : join(",", var.public_subnets))}" ]
+}
+
 resource "aws_vpc" "environment" {
 
   cidr_block = "${var.cidr_block}"
@@ -89,15 +105,25 @@ resource "aws_vpn_connection" "vpn" {
 
   Dependencies: aws_vpc.environment
 */
+
+/* only used if list of private subnets to create isn't passed in */
+resource "null_resource" "generated_private_subnets" {
+  count = "${length(local.availability_zones)}"
+
+  triggers {
+    cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(local.availability_zones) + count.index)}"
+  }
+}
+
 resource "aws_subnet" "private" {
 
-  count  = "${length(data.aws_availability_zones.all.names)}"
+  count  = "${length(local.availability_zones)}"
   vpc_id = "${aws_vpc.environment.id}"
 
-  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(data.aws_availability_zones.all.names) + count.index)}"
+  cidr_block = "${element(local.private_subnets, count.index)}"
 
   /* load balance over all availability zones */
-  availability_zone = "${element(data.aws_availability_zones.all.names, count.index)}"
+  availability_zone = "${element(local.availability_zones, count.index)}"
 
   /* private subnet, no public IPs */
   map_public_ip_on_launch = false
@@ -114,15 +140,27 @@ resource "aws_subnet" "private" {
 
   Dependencies: aws_vpc.environment
 */
+
+resource "null_resource" "generated_public_subnets" {
+
+  /* create subnet for each availability zone required */
+  count = "${length(local.availability_zones)}"
+
+  triggers {
+   cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, count.index)}" 
+  }
+
+}
 resource "aws_subnet" "public" {
 
-  count  = "${length(data.aws_availability_zones.all.names)}"
+  count  = "${length(local.availability_zones)}"
   vpc_id = "${aws_vpc.environment.id}"
 
   /* create subnet at the end of the cidr block */
-  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, count.index)}"
-  /* place in first availability zone */
-  availability_zone	= "${element(data.aws_availability_zones.all.names, count.index)}"
+  cidr_block        = "${element(local.public_subnets, count.index)}"
+
+  /* load balance over all the availabilty zones */
+  availability_zone	= "${element(local.availability_zones, count.index)}"
 
   /* instances in the public zone get an IP address */
   map_public_ip_on_launch	= true
@@ -134,11 +172,11 @@ resource "aws_subnet" "public" {
 
 resource "aws_subnet" "kubernetes" {
 
-  count = "${var.enable_kubernetes * length(data.aws_availability_zones.all.names)}"
+  count = "${var.enable_kubernetes * length(local.availability_zones)}"
   vpc_id = "${aws_vpc.environment.id}"
 
-  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(data.aws_availability_zones.all.names) * 2 + count.index)}"
-  availability_zone = "${element(data.aws_availability_zones.all.names, count.index)}"
+  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(local.availability_zones) * 2 + count.index)}"
+  availability_zone = "${element(local.availability_zones, count.index)}"
 
   map_public_ip_on_launch = false
 
@@ -150,7 +188,7 @@ resource "aws_subnet" "kubernetes" {
 
 resource "aws_route_table_association" "kubernetes" {
 
-  count = "${var.enable_kubernetes * length(data.aws_availability_zones.all.names)}"
+  count = "${var.enable_kubernetes * length(local.availability_zones)}"
 
   /* grab each subnet created */
   subnet_id      = "${element(aws_subnet.kubernetes.*.id, count.index)}"
@@ -267,7 +305,7 @@ resource "aws_route_table_association" "public" {
 */
 resource "aws_route_table_association" "private" {
 
-  count = "${length(data.aws_availability_zones.all.names)}"
+  count = "${length(local.availability_zones)}"
 
   subnet_id      = "${element(aws_subnet.private.*.id, count.index)}"
   route_table_id = "${aws_vpc.environment.main_route_table_id}"

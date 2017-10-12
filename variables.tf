@@ -1,4 +1,12 @@
+data "aws_availability_zones" "zones" {}
+
 variable "region" { description = "Region where VPC will be created" }
+
+variable "availability_zones" {
+  description = "Availability zones to configure"
+  default     =  []
+  type        = "list"
+}
 
 variable "name" {
   description = "Descriptive name for the VPC"
@@ -16,6 +24,13 @@ variable "tags" {
   default     = {}
 }
 
+variable "private_subnets" {
+  default = []
+}
+
+variable "public_subnets" {
+  default = []
+}
 /*
   This allows us to add additional tags to the public subnet.
 
@@ -43,6 +58,7 @@ variable "create_vgw" {
 
 variable "customer_gateway_id" {
   description = "If create_vgw = true, the Customer Gateway Device (GGW) to use"
+  default     = ""
 }
 
 variable "govcloud" {
