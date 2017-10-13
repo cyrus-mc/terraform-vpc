@@ -1,15 +1,17 @@
+/* query all the availability zones */
 data "aws_availability_zones" "zones" {}
 
 variable "region" { description = "Region where VPC will be created" }
 
-variable "availability_zones" {
-  description = "Availability zones to configure"
-  default     =  []
-  type        = "list"
-}
-
 variable "name" {
   description = "Descriptive name for the VPC"
+}
+
+
+variable "availability_zones" {
+  description = "List of availability zones to provision subnets in"
+  default     =  []
+  type        = "list"
 }
 
 variable "cidr_block" { description = "CIDR block to allocate to the VPC" }
@@ -17,6 +19,12 @@ variable "cidr_block" { description = "CIDR block to allocate to the VPC" }
 variable "cidr_block_bits" {
   description = "Variable subnet bits"
   default = "8"
+}
+
+variable "sg_cidr_blocks" {
+  description = "Network cidr blocks to allow inbound on default security group"
+  default = []
+  type    = "list"
 }
 
 variable "tags" {
@@ -51,6 +59,11 @@ variable "enable_dns" {
   default = true
 }
 
+variable "enable_public_ip" {
+  description = "Enable or disable mapping of public IP in public subnets"
+  default = false
+}
+
 variable "create_vgw" {
   description = "Enabled or isable creation of a Virtual Private Gateway (VGW)"
   default = true
@@ -61,14 +74,9 @@ variable "customer_gateway_id" {
   default     = ""
 }
 
-variable "govcloud" {
-  description = "Enable or disable GovCloud support"
+variable "enable_kubernetes" {
+  description = "Enable or disable Kubernetes subnet creation"
   default     = false
-}
-
-variable "key_name" {
-  description = "EC2 SSH key for NAT instance (only if govcloud = true)"
-  default     = ""
 }
 
 /*
@@ -82,7 +90,13 @@ variable "peering_info" {
   default     = []
 }
 
-variable "enable_kubernetes" {
-  description = "Enable or disable Kubernetes subnet creation"
+/* following settings deal explicitly with GovCloud */
+variable "govcloud" {
+  description = "Enable or disable GovCloud support"
   default     = false
+}
+
+variable "key_name" {
+  description = "EC2 SSH key for NAT instance (only if govcloud = true)"
+  default     = ""
 }
