@@ -3,6 +3,39 @@
 
   Dependencies: none
 */
+
+################################################
+#        Local Variable defintions             #
+################################################
+locals {
+  /*
+    Select the zones based on whether they are passed in, or query all zones
+
+    NOTE: work around as conditional logic does not work with lists or maps
+  */
+  availability_zones = [ "${split(",",
+      length(var.availability_zones) == 0
+          ? join(",", data.aws_availability_zones.get_all.names)
+          : join(",", var.availability_zones))}" ]
+
+  /*
+    Use passed in public subnets or generate
+  */
+  private_subnets = [ "${split(",",
+      length(var.private_subnets) == 0
+          ? join(",", null_resource.generated_private_subnets.*.triggers.cidr_block)
+          : join(",", var.private_subnets))}" ]
+
+  public_subnets = [ "${split(",",
+      length(var.public_subnets) == 0
+          ? join(",", null_resource.generated_public_subnets.*.triggers.cidr_block)
+          : join(",", var.public_subnets))}" ]
+
+}
+
+################################################
+#          Virtual Private Cloud               #
+################################################
 resource "aws_vpc" "environment" {
 
   cidr_block = "${var.cidr_block}"
@@ -28,12 +61,16 @@ resource "aws_default_security_group" "default" {
 
   vpc_id = "${aws_vpc.environment.id}"
 
+  /* only want to do this once if rules are supplied */
+  #count = 2
+
   /* allow all traffic from within the VPC */
   ingress {
     from_port   = 0
     to_port     = 0
     protocol    = -1
-    cidr_blocks = [ "${var.cidr_block}" ]
+    cidr_blocks = [ "${var.sg_cidr_blocks}" ]
+    self = true
   }
 
   /* allow all outbound traffic */
@@ -47,6 +84,198 @@ resource "aws_default_security_group" "default" {
   tags = "${merge(var.tags, map("Name", format("%s", var.name)), map("builtWith", "terraform"))}"
 
 }
+
+##############################################
+#          Internet Gateway                  #
+##############################################
+/*
+  Create the internet gateway for this VPC
+
+  Dependencies: aws_vpc.environment
+*/
+resource "aws_internet_gateway" "gw" {
+
+  vpc_id = "${aws_vpc.environment.id}"
+
+  tags = "${merge(var.tags, map("Name", format("%s", var.name)), map("builtWith", "terraform"))}",
+
+}
+
+##############################################
+# Network Address Translation (NAT)  Gateway #
+##############################################
+/*
+  Provision a NAT gateway
+
+  Dependencies: aws_eip.eip, aws_subnet.public
+
+  Not applicable for AWS GovCloud region
+*/
+resource "aws_eip" "eip" {
+
+  count = "${1 - var.govcloud}"
+
+}
+
+resource "aws_nat_gateway" "ngw" {
+
+  count         = "${1 - var.govcloud}"
+
+  allocation_id = "${aws_eip.eip.id}"
+  #subnet_id     = "${aws_subnet.public.id}"
+  subnet_id      = "${element(aws_subnet.public.*.id, 0)}"
+
+
+}
+
+###############################################
+#     Route Table Creation / Modification     #
+###############################################
+/*
+  Route table with default route being the internet gateway
+
+  Dependencies: aws_vpc.environment, aws_internet_gateway.gw
+*/
+resource "aws_route_table" "public" {
+
+  vpc_id = "${aws_vpc.environment.id}"
+
+  /* default route to internet gateway */
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = "${aws_internet_gateway.gw.id}"
+  }
+
+  tags = "${merge(var.tags, map("Name", format("public.%s", var.name)), map("builtWith", "terraform"))}",
+
+}
+
+/*
+  Main route table for the VPC with default route being the NAT instance
+
+  Dependencies: aws_vpc.environment, aws_net_gateway.ngw
+*/
+resource "aws_route" main {
+
+  /* only required if deploying into non-GovCloud region */
+  count = "${1 - var.govcloud}"
+
+  /* main route table associated with our VPC */
+  route_table_id = "${aws_vpc.environment.main_route_table_id}"
+
+  destination_cidr_block = "0.0.0.0/0"
+  /* main route table associated with our VPC */
+  nat_gateway_id         = "${aws_nat_gateway.ngw.id}"
+
+}
+
+resource "aws_route" "main-govcloud" {
+
+  /* only required if deploying into AWS GovCloud region */
+  count = "${var.govcloud}"
+
+  /* main route table associated with our VPC */
+  route_table_id = "${aws_vpc.environment.main_route_table_id}"
+
+  destination_cidr_block = "0.0.0.0/0"
+  instance_id            = "${aws_instance.nat_instance.id}"
+
+}
+
+##############################################
+#     Private / Public / Custom Subnets      #
+##############################################
+/*
+  http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Scenario2.html
+
+  Private subnet (this is a single point of failure)
+
+  Dependencies: aws_vpc.environment
+*/
+
+/* only used if list of private subnets to create isn't passed in */
+resource "null_resource" "generated_private_subnets" {
+
+  /* create a subnet for each availability zone required */
+  count = "${length(local.availability_zones)}"
+
+  triggers {
+    cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(local.availability_zones) + count.index)}"
+  }
+
+}
+
+resource "aws_subnet" "private" {
+
+  count  = "${length(local.availability_zones)}"
+  vpc_id = "${aws_vpc.environment.id}"
+
+  cidr_block = "${element(local.private_subnets, count.index)}"
+
+  /* load balance over all availability zones */
+  availability_zone = "${element(local.availability_zones, count.index)}"
+
+  /* private subnet, no public IPs */
+  map_public_ip_on_launch = false
+
+  /* merge all the tags together */
+  tags = "${merge(var.tags, var.private_subnet_tags, map("Name", format("private-%d.%s", count.index, var.name)), map("builtWith", "terraform"))}"
+
+}
+
+/*
+  http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Scenario2.html
+
+  Public subnet (this is a single point of failure)
+
+  Dependencies: aws_vpc.environment
+*/
+
+resource "null_resource" "generated_public_subnets" {
+
+  /* create subnet for each availability zone required */
+  count = "${length(local.availability_zones)}"
+
+  triggers {
+   cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, count.index)}"
+  }
+
+}
+resource "aws_subnet" "public" {
+
+  count  = "${length(local.availability_zones)}"
+  vpc_id = "${aws_vpc.environment.id}"
+
+  /* create subnet at the end of the cidr block */
+  cidr_block        = "${element(local.public_subnets, count.index)}"
+
+  /* load balance over all the availabilty zones */
+  availability_zone = "${element(local.availability_zones, count.index)}"
+
+  /* instances in the public zone get an IP address */
+  map_public_ip_on_launch = "${var.enable_public_ip}"
+
+  /* merge all the tags together */
+  tags = "${merge(var.tags, var.public_subnet_tags, map("Name", format("public.%s", var.name)), map("builtWith", "terraform"))}"
+
+}
+
+resource "aws_subnet" "kubernetes" {
+
+  count = "${var.enable_kubernetes * length(local.availability_zones)}"
+  vpc_id = "${aws_vpc.environment.id}"
+
+  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(local.availability_zones) * 2 + count.index)}"
+  availability_zone = "${element(local.availability_zones, count.index)}"
+
+  map_public_ip_on_launch = false
+
+  /* merge all the tags together */
+  tags = "${merge(var.tags, var.public_subnet_tags, map("Name", format("kubernetes-%d.%s", count.index, var.name)), map("builtWith", "terraform"), map("KubernetesCluster", "${var.name}"))}"
+
+
+}
+
 
 /*
   Create a Virtual Private Gateway
@@ -82,170 +311,9 @@ resource "aws_vpn_connection" "vpn" {
 
 }
 
-/*
-  http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Scenario2.html
-
-  Private subnet (this is a single point of failure)
-
-  Dependencies: aws_vpc.environment
-*/
-resource "aws_subnet" "private" {
-
-  count  = "${length(data.aws_availability_zones.all.names)}"
-  vpc_id = "${aws_vpc.environment.id}"
-
-  cidr_block = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(data.aws_availability_zones.all.names) + count.index)}"
-
-  /* load balance over all availability zones */
-  availability_zone = "${element(data.aws_availability_zones.all.names, count.index)}"
-
-  /* private subnet, no public IPs */
-  map_public_ip_on_launch = false
-
-  /* merge all the tags together */
-  tags = "${merge(var.tags, var.private_subnet_tags, map("Name", format("private-%d.%s", count.index, var.name)), map("builtWith", "terraform"))}"
-
-}
-
-/*
-  http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Scenario2.html
-
-  Public subnet (this is a single point of failure) 
-
-  Dependencies: aws_vpc.environment
-*/
-resource "aws_subnet" "public" {
-
-  count  = "${length(data.aws_availability_zones.all.names)}"
-  vpc_id = "${aws_vpc.environment.id}"
-
-  /* create subnet at the end of the cidr block */
-  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, count.index)}"
-  /* place in first availability zone */
-  availability_zone	= "${element(data.aws_availability_zones.all.names, count.index)}"
-
-  /* instances in the public zone get an IP address */
-  map_public_ip_on_launch	= true
-
-  /* merge all the tags together */
-  tags = "${merge(var.tags, var.public_subnet_tags, map("Name", format("public.%s", var.name)), map("builtWith", "terraform"))}"
-
-}
-
-resource "aws_subnet" "kubernetes" {
-
-  count = "${var.enable_kubernetes * length(data.aws_availability_zones.all.names)}"
-  vpc_id = "${aws_vpc.environment.id}"
-
-  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(data.aws_availability_zones.all.names) * 2 + count.index)}"
-  availability_zone = "${element(data.aws_availability_zones.all.names, count.index)}"
-
-  map_public_ip_on_launch = false
-
-  /* merge all the tags together */
-  tags = "${merge(var.tags, var.public_subnet_tags, map("Name", format("kubernetes-%d.%s", count.index, var.name)), map("builtWith", "terraform"), map("KubernetesCluster", "${var.name}"))}"
-
-
-}
-
-resource "aws_route_table_association" "kubernetes" {
-
-  count = "${var.enable_kubernetes * length(data.aws_availability_zones.all.names)}"
-
-  /* grab each subnet created */
-  subnet_id      = "${element(aws_subnet.kubernetes.*.id, count.index)}"
-  route_table_id = "${aws_vpc.environment.main_route_table_id}"
-
-}
-
-/*
-  Create the internet gateway for this VPC
-
-  Dependencies: aws_vpc.environment
-*/
-resource "aws_internet_gateway" "gw" {
-
-  vpc_id = "${aws_vpc.environment.id}"
-
-  tags = "${merge(var.tags, map("Name", format("%s", var.name)), map("builtWith", "terraform"))}",
-
-}
-
-/*
-  Route table with default route being the internet gateway
-
-  Dependencies: aws_vpc.environment, aws_internet_gateway.gw
-*/
-resource "aws_route_table" "public" {
-
-  vpc_id = "${aws_vpc.environment.id}"
-
-  /* default route to internet gateway */
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = "${aws_internet_gateway.gw.id}"
-  }
-
-  tags = "${merge(var.tags, map("Name", format("public.%s", var.name)), map("builtWith", "terraform"))}",
-
-}
-
-/*
-	Main route table for the VPC with default route being the NAT instance
-
-	Dependencies: aws_vpc.environment, aws_net_gateway.ngw
-*/
-resource "aws_route" main {
-
-  /* only required if deploying into non-GovCloud region */
-  count = "${1 - var.govcloud}"
-
-  /* main route table associated with our VPC */
-  route_table_id = "${aws_vpc.environment.main_route_table_id}"
-
-  destination_cidr_block = "0.0.0.0/0"
-  /* main route table associated with our VPC */
-  nat_gateway_id         = "${aws_nat_gateway.ngw.id}"
-
-}
-
-resource "aws_route" "main-govcloud" {
-
-  /* only required if deploying into AWS GovCloud region */
-  count = "${var.govcloud}"
-
-  /* main route table associated with our VPC */
-  route_table_id = "${aws_vpc.environment.main_route_table_id}"
-
-  destination_cidr_block = "0.0.0.0/0"
-  instance_id            = "${aws_instance.nat_instance.id}"
-
-}
-
-
-/*
-  Provision a NAT gateway
-
-  Dependencies: aws_eip.eip, aws_subnet.public
-
-  Not applicable for AWS GovCloud region  
-*/
-resource "aws_eip" "eip" { 
-
-  count = "${1 - var.govcloud}"
-
-}
-
-resource "aws_nat_gateway" "ngw" {
-
-  count         = "${1 - var.govcloud}"
-
-  allocation_id = "${aws_eip.eip.id}"
-  #subnet_id     = "${aws_subnet.public.id}"
-  subnet_id      = "${element(aws_subnet.public.*.id, 1)}"
-
-
-}
+##############################################
+#    Route Table association resources       #
+##############################################
 
 /*
   Associate the public subnet with the above route table
@@ -254,8 +322,9 @@ resource "aws_nat_gateway" "ngw" {
 */
 resource "aws_route_table_association" "public" {
 
-  #subnet_id      = "${aws_subnet.public.id}"
-  subnet_id      = "${element(aws_subnet.public.*.id, 1)}"
+  count          = "${length(local.availability_zones)}"
+
+  subnet_id      = "${element(aws_subnet.public.*.id, count.index)}"
   route_table_id = "${aws_route_table.public.id}"
 
 }
@@ -267,11 +336,26 @@ resource "aws_route_table_association" "public" {
 */
 resource "aws_route_table_association" "private" {
 
-  count = "${length(data.aws_availability_zones.all.names)}"
+  count = "${length(local.availability_zones)}"
 
   subnet_id      = "${element(aws_subnet.private.*.id, count.index)}"
   route_table_id = "${aws_vpc.environment.main_route_table_id}"
 
+}
+
+/*
+  Associate the kubernetes subnet(s) (created conditionally) with main VPC
+  route table
+
+  Dependencies: aws_subnet.kubernetes, aws_vpc.environment
+*/
+resource "aws_route_table_association" "kubernetes" {
+
+  count = "${var.enable_kubernetes * length(local.availability_zones)}"
+
+  /* grab each subnet created */
+  subnet_id      = "${element(aws_subnet.kubernetes.*.id, count.index)}"
+  route_table_id = "${aws_vpc.environment.main_route_table_id}"
 }
 
 /*
