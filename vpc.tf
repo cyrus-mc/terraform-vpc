@@ -140,13 +140,16 @@ resource "aws_route_table" "public" {
 
   vpc_id = "${aws_vpc.environment.id}"
 
-  /* default route to internet gateway */
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = "${aws_internet_gateway.gw.id}"
-  }
-
   tags = "${merge(var.tags, map("Name", format("public.%s", var.name)), map("builtWith", "terraform"))}",
+
+}
+
+resource "aws_route" "public-igw" {
+
+  route_table_id = "${aws_route_table.public.id}"
+
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = "${aws_internet_gateway.gw.id}"
 
 }
 
