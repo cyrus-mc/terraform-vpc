@@ -1,3 +1,5 @@
+@Library('shared-library@master') _
+
 inside {
   properties ([
     [ $class: 'BuildDiscarderProperty', strategy: [ $class: 'LogRotator', daysToKeepStr: '7', numToKeep: '10' ] ],
@@ -5,8 +7,24 @@ inside {
 
   currentBuild.result = 'SUCCESS'
 
-  stage('Checkout Code') {
-    sh "/bin/sleep 600"
+  stage('Code Checkout') {
+    checkout scm
+  }
+
+  stage('Build') {
+    println "Building"
+  }
+
+  stage('Tests: Unit') {
+    println "Running Unit tests"
+  }
+
+  stage('Quality Assessment') {
+    println "Running code quality"
+  }
+
+  stage('Package') {
+    println "Packaging"
   }
 
 }
