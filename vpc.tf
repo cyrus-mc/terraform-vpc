@@ -54,6 +54,29 @@ resource "aws_vpc" "environment" {
 
 }
 
+
+/* set the list of name servers to configure in /etc/resolv.conf */
+resource "aws_vpc_dhcp_options" "dns_resolver" {
+
+  /* do we need to create this? */
+  count = "${var.deploy_dns}"
+
+  /* grab the list of DNS server IPs */
+  domain_name_servers = [ "${module.dns.server_ips}" ]
+
+}
+
+resource "aws_vpc_dhcp_options_association" "dns_resolver" {
+
+  /* do we need to make this association? */
+  count = "${var.deploy_dns}"
+
+  vpc_id          = "${aws_vpc.environment.id}"
+  dhcp_options_id = "${aws_vpc_dhcp_options.dns_resolver.id}"
+
+}
+
+
 /*
   Modify the default security group created as part of the VPC
 */
