@@ -33,7 +33,7 @@ resource "aws_instance" "nat_instance" {
 */
 module "dns" {
 
-  source = "git::https://bitbucket.org/datdevops/tf-aws_dns.git?ref=1.0.2"
+  source = "git::ssh://git@bitbucket.org/datdevops/tf-aws_dns.git?ref=1.0.2"
 
   /* set the region */
   region = "${var.region}"
