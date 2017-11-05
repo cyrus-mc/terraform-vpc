@@ -5,35 +5,6 @@
 */
 
 ################################################
-#        Local Variable defintions             #
-################################################
-locals {
-  /*
-    Select the zones based on whether they are passed in, or query all zones
-
-    NOTE: work around as conditional logic does not work with lists or maps
-  */
-  availability_zones = [ "${split(",",
-      length(var.availability_zones) == 0
-          ? join(",", data.aws_availability_zones.get_all.names)
-          : join(",", var.availability_zones))}" ]
-
-  /*
-    Use passed in public subnets or generate
-  */
-  private_subnets = [ "${split(",",
-      length(var.private_subnets) == 0
-          ? join(",", null_resource.generated_private_subnets.*.triggers.cidr_block)
-          : join(",", var.private_subnets))}" ]
-
-  public_subnets = [ "${split(",",
-      length(var.public_subnets) == 0
-          ? join(",", null_resource.generated_public_subnets.*.triggers.cidr_block)
-          : join(",", var.public_subnets))}" ]
-
-}
-
-################################################
 #          Virtual Private Cloud               #
 ################################################
 resource "aws_vpc" "environment" {
@@ -64,6 +35,10 @@ resource "aws_vpc_dhcp_options" "dns_resolver" {
   /* grab the list of DNS server IPs */
   domain_name_servers = [ "${module.dns.server_ips}" ]
 
+  /* follow AWS convention */
+  domain_name = "${local.domain_name}"
+
+  tags = "${merge(var.tags, map("Name", format("%s", var.name)), map("builtWith", "terraform"))}"
 }
 
 resource "aws_vpc_dhcp_options_association" "dns_resolver" {
