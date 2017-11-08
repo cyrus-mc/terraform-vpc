@@ -110,11 +110,6 @@ variable "enable_kubernetes" {
   default     = false
 }
 
-variable "deploy_dns" {
-  description = "Flag to control whether to deploy DNS forwarders"
-  default     = false
-}
-
 /*
   The following variable is used to setup VPC peering.
 
