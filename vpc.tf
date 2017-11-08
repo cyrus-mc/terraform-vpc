@@ -231,7 +231,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = "${var.enable_public_ip}"
 
   /* merge all the tags together */
-  tags = "${merge(var.tags, var.public_subnet_tags, map("Name", format("public.%s", var.name)), map("builtWith", "terraform"))}"
+  tags = "${merge(var.tags, var.public_subnet_tags, map("Name", format("public-%d.%s", count.index, var.name)), map("builtWith", "terraform"))}"
 
 }
 
