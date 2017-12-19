@@ -27,6 +27,15 @@ locals {
 
   domain_name = "${var.region == "us-east-1" ? "ec2.internal" : format("%s.compute.internal", var.region)}"
 
+  /* if we supplied a non-empty value create the zone */
+  create_zone = "${var.route53_zone == "" ? 0 : 1}"
+
+  /* default tags */
+  tags {
+    Name       = "${format("%s", var.name)}"
+    built-with = "terraform"
+  }
+
 }
 
 /* query all the availability zones */
@@ -108,6 +117,12 @@ variable "customer_gateway_id" {
 variable "enable_kubernetes" {
   description = "Enable or disable Kubernetes subnet creation"
   default     = false
+}
+
+/* private route53 zone to create */
+variable "route53_zone" {
+  description = "The Route53 private zone to create and associate with this VPC"
+  default     = ""
 }
 
 /*
