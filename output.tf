@@ -30,7 +30,7 @@ output "public_subnet_cidr" {
 }
 
 output "nat_instance_id" {
-  value = "${aws_instance.nat_instance.id}"
+  value = "${aws_instance.nat_instance.*.id}"
 }
 
 /* Kubernetes subnet details */
