@@ -38,9 +38,6 @@ locals {
 
 }
 
-/* query all the availability zones */
-data "aws_availability_zones" "zones" {}
-
 variable "region" { description = "Region where VPC will be created" }
 
 variable "name" {
