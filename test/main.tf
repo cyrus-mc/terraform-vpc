@@ -8,7 +8,6 @@ module "test1" {
   public_subnets  = [ "10.36.8.0/24", "10.36.9.0/24" ]
 
   name   = "test1"
-  region = "us-west-2"
 
   public_subnet_tags {
     tag1 = "value1"
@@ -28,7 +27,6 @@ module "test2" {
   cidr_block_bits = "2"
 
   name   = "test1"
-  region = "us-west-2"
 
   public_subnet_tags {
     tag1 = "value1"

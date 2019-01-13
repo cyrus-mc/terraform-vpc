@@ -25,8 +25,6 @@ locals {
           ? join(",", null_resource.generated_public_subnets.*.triggers.cidr_block)
           : join(",", var.public_subnets))}" ]
 
-  domain_name = "${var.region == "us-east-1" ? "ec2.internal" : format("%s.compute.internal", var.region)}"
-
   /* if we supplied a non-empty value create the zone */
   create_zone = "${var.route53_zone == "" ? 0 : 1}"
 
@@ -37,8 +35,6 @@ locals {
   }
 
 }
-
-variable "region" { description = "Region where VPC will be created" }
 
 variable "name" {
   description = "Descriptive name for the VPC"
@@ -109,11 +105,6 @@ variable "create_vgw" {
 variable "customer_gateway_id" {
   description = "If create_vgw = true, the Customer Gateway Device (GGW) to use"
   default     = ""
-}
-
-variable "enable_kubernetes" {
-  description = "Enable or disable Kubernetes subnet creation"
-  default     = false
 }
 
 /* private route53 zone to create */

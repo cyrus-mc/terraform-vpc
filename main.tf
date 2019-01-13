@@ -264,21 +264,6 @@ resource "aws_subnet" "public" {
   tags = "${merge(var.tags, var.public_subnet_tags, local.tags, map("Name", format("public-%d.%s", count.index, var.name)))}"
 }
 
-resource "aws_subnet" "kubernetes" {
-  count = "${var.enable_kubernetes * length(local.availability_zones)}"
-
-  vpc_id = "${aws_vpc.environment.id}"
-
-  cidr_block        = "${cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(local.availability_zones) * 2 + count.index)}"
-  availability_zone = "${element(local.availability_zones, count.index)}"
-
-  map_public_ip_on_launch = false
-
-  /* merge all the tags together */
-  tags = "${merge(var.tags, var.public_subnet_tags, local.tags, map("Name", format("kubernetes-%d.%s", count.index, var.name)), map("KubernetesCluster", "${var.name}"))}"
-}
-
-
 /*
   Create a Virtual Private Gateway
 
@@ -334,20 +319,6 @@ resource "aws_route_table_association" "private" {
   count = "${length(local.availability_zones)}"
 
   subnet_id      = "${element(aws_subnet.private.*.id, count.index)}"
-  route_table_id = "${aws_vpc.environment.main_route_table_id}"
-}
-
-/*
-  Associate the kubernetes subnet(s) (created conditionally) with main VPC
-  route table
-
-  Dependencies: aws_subnet.kubernetes, aws_vpc.environment
-*/
-resource "aws_route_table_association" "kubernetes" {
-  count = "${var.enable_kubernetes * length(local.availability_zones)}"
-
-  /* grab each subnet created */
-  subnet_id      = "${element(aws_subnet.kubernetes.*.id, count.index)}"
   route_table_id = "${aws_vpc.environment.main_route_table_id}"
 }
 

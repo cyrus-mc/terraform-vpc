@@ -11,12 +11,3 @@ output "public_subnet_id"   { value = [ "${aws_subnet.public.*.id}" ] }
 output "public_subnet_cidr" { value = [ "${aws_subnet.public.*.cidr_block}" ] }
 
 output "nat_instance_id" { value = "${aws_instance.nat_instance.*.id}" }
-
-/* Kubernetes subnet details */
-output "kubernetes_subnet_id" {
-  value = [ "${aws_subnet.kubernetes.*.id}" ]
-}
-
-output "kubernetes_subnet_cidr_block" {
-  value = [ "${aws_subnet.kubernetes.*.cidr_block}" ]
-}
