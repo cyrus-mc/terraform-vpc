@@ -3,9 +3,9 @@ module "test1" {
 
   availability_zones = [ "us-west-2a" ]
 
-  cidr_block      = "10.0.0.0/16"
-  public_subnets  = [ "10.0.0.0/16" ]
-  private_subnets = [ "10.1.0.0/16" ]
+  cidr_block      = "10.36.8.0/22"
+  private_subnets = [ "10.36.10.0/24", "10.36.11.0/24" ]
+  public_subnets  = [ "10.36.8.0/24", "10.36.9.0/24" ]
 
   name   = "test1"
   region = "us-west-2"
@@ -24,9 +24,8 @@ module "test2" {
 
   availability_zones = [ "us-west-2a", "us-west-2b" ]
 
-  cidr_block      = "10.0.0.0/16"
-  public_subnets  = [ "10.0.0.0/16" ]
-  private_subnets = [ "10.1.0.0/16" ]
+  cidr_block      = "10.36.8.0/22"
+  cidr_block_bits = "2"
 
   name   = "test1"
   region = "us-west-2"
