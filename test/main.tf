@@ -7,13 +7,13 @@ module "test1" {
   private_subnets = [ "10.36.10.0/24", "10.36.11.0/24" ]
   public_subnets  = [ "10.36.8.0/24", "10.36.9.0/24" ]
 
-  name   = "test1"
+  name = "test1"
 
-  public_subnet_tags {
+  public_subnet_tags = {
     tag1 = "value1"
   }
 
-  private_subnet_tags {
+  private_subnet_tags = {
     tag1 = "value1"
   }
 }
@@ -26,13 +26,13 @@ module "test2" {
   cidr_block      = "10.36.8.0/22"
   cidr_block_bits = "2"
 
-  name   = "test1"
+  name = "test1"
 
-  public_subnet_tags {
+  public_subnet_tags = {
     tag1 = "value1"
   }
 
-  private_subnet_tags {
+  private_subnet_tags = {
     tag1 = "value1"
   }
 }

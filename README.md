@@ -11,8 +11,9 @@ Official AWS documentation: https://docs.aws.amazon.com/vpc/latest/userguide/get
 
 This module requires:
 
-   -  [AWS Provider](https://github.com/terraform-providers/terraform-provider-aws) `>= 1.17.0`
-   -  [Null Resource Provider](https://github.com/terraform-providers/terraform-provider-null) `>= 1.0.0`
+   -  [Terraform](https://github.com/hashicorp/terraform) `>= 0.12`
+   -  [AWS Provider](https://github.com/terraform-providers/terraform-provider-aws) `>= 2.10.0`
+   -  [Null Resource Provider](https://github.com/terraform-providers/terraform-provider-null) `>= 2.1.0`
 
 ### Inputs
 - - - -
@@ -76,11 +77,11 @@ module "vpc" {
   public_subnets  = [ "10.36.8.0/24", "10.36.9.0/24" ]
 
   /* add some additional tags to public subnets */
-  public_subnet_tags {
+  public_subnet_tags = {
     tag1 = "value1"
   }
   /* add some additional tags to private subnets */
-  private_subnet_tags {
+  private_subnet_tags = {
     tag2 = "value2"
   }
 }
@@ -103,11 +104,11 @@ module "vpc-dynamic" {
   cidr_block_bits = "2"
 
   /* add some additional tags to public subnets */
-  public_subnet_tags {
+  public_subnet_tags = {
     tag1 = "value1"
   }
   /* add some additional tags to private subnets */
-  private_subnet_tags {
+  private_subnet_tags = {
     tag2 = "value2"
   }
 }
