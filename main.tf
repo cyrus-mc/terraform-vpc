@@ -75,16 +75,19 @@ resource "aws_internet_gateway" "gw" {
 # Network Address Translation (NAT)  Gateway #
 ##############################################
 /*
-  Provision a NAT gateway
+  Provision a NAT gateway in each availability zone
 
   Dependencies: aws_eip.eip, aws_subnet.public
 */
-resource "aws_eip" "eip" {}
+resource "aws_eip" "eip" {
+  count = length(local.availability_zones)
+}
 
 resource "aws_nat_gateway" "ngw" {
-  allocation_id = aws_eip.eip.id
+  count = length(local.availability_zones)
 
-  subnet_id = element(aws_subnet.public.*.id, 0)
+  allocation_id = aws_eip.eip[ count.index ].id
+  subnet_id     = aws_subnet.public[ count.index ].id
 }
 
 ###############################################
@@ -101,11 +104,29 @@ resource "aws_route_table" "public" {
   tags = merge(var.tags, local.tags, { "Name" = format("public.%s", var.name) })
 }
 
-resource "aws_route" "public-igw" {
+resource "aws_route" "public" {
   route_table_id = aws_route_table.public.id
 
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = aws_internet_gateway.gw.id
+}
+
+resource "aws_route_table" "private" {
+  count = length(local.availability_zones)
+
+  vpc_id = aws_vpc.environment.id
+
+  tags = merge(var.tags, local.tags, { "Name" = format("public.%s", var.name) })
+}
+
+resource "aws_route" "private" {
+  count = length(local.availability_zones)
+
+  route_table_id = aws_route_table.private[ count.index ].id
+
+  /* default route is NAT gateway */
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.ngw[ count.index ].id
 }
 
 /*
@@ -113,15 +134,15 @@ resource "aws_route" "public-igw" {
 
   Dependencies: aws_vpc.environment, aws_net_gateway.ngw
 */
-resource "aws_route" "main" {
+//resource "aws_route" "main" {
   /* main route table associated with our VPC */
-  route_table_id = aws_vpc.environment.main_route_table_id
+ // route_table_id = aws_vpc.environment.main_route_table_id
 
-  destination_cidr_block = "0.0.0.0/0"
+  //destination_cidr_block = "0.0.0.0/0"
 
   /* main route table associated with our VPC */
-  nat_gateway_id = aws_nat_gateway.ngw.id
-}
+  //nat_gateway_id = aws_nat_gateway.ngw[0].id
+//}
 
 ##############################################
 #     Private / Public / Custom Subnets      #
@@ -251,7 +272,8 @@ resource "aws_route_table_association" "private" {
   count = length(local.availability_zones)
 
   subnet_id      = element(aws_subnet.private.*.id, count.index)
-  route_table_id = aws_vpc.environment.main_route_table_id
+  route_table_id = element(aws_route_table.private.*.id, count.index)
+  //route_table_id = aws_vpc.environment.main_route_table_id
 }
 
 /* create private route53 zone */
