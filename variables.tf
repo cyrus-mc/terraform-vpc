@@ -13,8 +13,6 @@ locals {
   public_subnets  = (length(var.public_subnets) == 0
                                                      ? null_resource.generated_private_subnets.*.triggers.cidr_block
                                                      : var.public_subnets)
-  /* if we supplied a non-empty value create the zone */
-  create_zone = var.route53_zone == "" ? 0 : 1
 
   /* default tags */
   tags = {
@@ -38,8 +36,6 @@ variable "sg_cidr_blocks" {
   type        = list(string)
 }
 
-variable "tags" { default = {} }
-
 variable "private_subnets" { default = [] }
 variable "public_subnets"  { default = [] }
 
@@ -51,19 +47,7 @@ variable "public_subnets"  { default = [] }
 variable "public_subnet_tags"  { default = {} }
 variable "private_subnet_tags" { default = {} }
 
-variable "enable_dns" { default = true }
-
+variable "enable_dns"       { default = true }
 variable "enable_public_ip" { default = false }
 
-variable "create_vgw" { default = true }
-
-variable "customer_gateway_id" {
-  description = "If create_vgw = true, the Customer Gateway Device (GGW) to use"
-  default     = ""
-}
-
-/* private route53 zone to create */
-variable "route53_zone" {
-  description = "The Route53 private zone to create and associate with this VPC"
-  default     = ""
-}
+variable "tags" { default = {} }

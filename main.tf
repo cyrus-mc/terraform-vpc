@@ -1,126 +1,87 @@
-/*
-  Query all the availability zones
-*/
+/* Query all the availability zones */
 data "aws_availability_zones" "get_all" {}
 
-/*
-  Create the environment VPC.
-
-  Dependencies: none
-*/
-
-################################################
-#          Virtual Private Cloud               #
-################################################
+/* create VPC */
 resource "aws_vpc" "environment" {
   cidr_block = var.cidr_block
 
-  /*
-    Enable DNS support and DNS hostnames to support private hosted zones
-  */
+  /* Enable DNS support and DNS hostnames to support private hosted zones */
   enable_dns_support   = var.enable_dns
   enable_dns_hostnames = var.enable_dns
 
   lifecycle {
-    prevent_destroy = "true"
+    prevent_destroy = true
   }
 
-  tags = merge(var.tags, local.tags)
+  tags = merge(var.tags, local.tags, { "vpc" = var.name })
 }
 
-/*
-  Modify the default security group created as part of the VPC
-*/
-resource "aws_default_security_group" "default" {
-  vpc_id = aws_vpc.environment.id
-
-  /* only want to do this once if rules are supplied */
-  #count = 2
-
-  /* allow all traffic from within the VPC */
-  ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = -1
-    cidr_blocks = var.sg_cidr_blocks
-    self        = true
-  }
-
-  /* allow all outbound traffic */
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = -1
-    cidr_blocks = [ "0.0.0.0/0" ]
-  }
-
-  tags = merge(var.tags, local.tags)
-}
-
-##############################################
-#          Internet Gateway                  #
-##############################################
-/*
-  Create the internet gateway for this VPC
-
-  Dependencies: aws_vpc.environment
-*/
-resource "aws_internet_gateway" "gw" {
+/* create a single internet gateway */
+resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.environment.id
 
   tags = merge(var.tags, local.tags)
 }
 
-##############################################
-# Network Address Translation (NAT)  Gateway #
-##############################################
 /*
-  Provision a NAT gateway
-
-  Dependencies: aws_eip.eip, aws_subnet.public
+  Provision NAT Gateway per Availability Zone
 */
-resource "aws_eip" "eip" {}
+resource "aws_eip" "eip" {
+  count = length(local.availability_zones)
+
+  tags = merge(var.tags, local.tags, { "Name" = format("%s.%s", var.name,
+                                                                local.availability_zones[ count.index ]) },
+                                     { "vpc"    = var.name },
+                                     { "region" = local.availability_zones[ count.index ] })
+}
 
 resource "aws_nat_gateway" "ngw" {
-  allocation_id = aws_eip.eip.id
+  count = length(local.availability_zones)
 
-  subnet_id = element(aws_subnet.public.*.id, 0)
+  allocation_id = aws_eip.eip[ count.index ].id
+  subnet_id     = aws_subnet.public[ count.index ].id
+
+  tags = merge(var.tags, local.tags, { "Name" = format("%s.%s", var.name,
+                                                                local.availability_zones[ count.index ]) },
+                                     { "vpc"    = var.name },
+                                     { "region" = local.availability_zones[ count.index ] })
 }
 
-###############################################
-#     Route Table Creation / Modification     #
-###############################################
-/*
-  Route table with default route being the internet gateway
-
-  Dependencies: aws_vpc.environment, aws_internet_gateway.gw
-*/
+/* create a route table for the public subnet(s) */
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.environment.id
 
-  tags = merge(var.tags, local.tags, { "Name" = format("public.%s", var.name) })
+  tags = merge(var.tags, local.tags, { "Name" = "public" },
+                                     { "VPC" = var.name },
+                                     { "region" = "all" })
 }
 
-resource "aws_route" "public-igw" {
+resource "aws_route" "public" {
   route_table_id = aws_route_table.public.id
 
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.gw.id
+  gateway_id             = aws_internet_gateway.main.id
 }
 
-/*
-  Main route table for the VPC with default route being the NAT instance
+/* create a route table per Availability Zone for private subnet(s) */
+resource "aws_route_table" "private" {
+  count = length(local.availability_zones)
 
-  Dependencies: aws_vpc.environment, aws_net_gateway.ngw
-*/
-resource "aws_route" "main" {
-  /* main route table associated with our VPC */
-  route_table_id = aws_vpc.environment.main_route_table_id
+  vpc_id = aws_vpc.environment.id
 
+  tags = merge(var.tags, local.tags, { "Name" = "private" },
+                                     { "vpc"  = var.name },
+                                     { "region" = local.availability_zones[ count.index ] })
+}
+
+resource "aws_route" "private" {
+  count = length(local.availability_zones)
+
+  route_table_id = aws_route_table.private[ count.index ].id
+
+  /* default route is NAT gateway */
   destination_cidr_block = "0.0.0.0/0"
-
-  /* main route table associated with our VPC */
-  nat_gateway_id = aws_nat_gateway.ngw.id
+  nat_gateway_id         = aws_nat_gateway.ngw[ count.index ].id
 }
 
 ##############################################
@@ -158,7 +119,8 @@ resource "aws_subnet" "private" {
   map_public_ip_on_launch = false
 
   /* merge all the tags together */
-  tags = merge(var.tags, var.private_subnet_tags, local.tags, { "Name" = format("private-%d.%s", count.index, var.name) })
+  tags = merge(var.tags, var.private_subnet_tags, local.tags, { "Name" = format("private-%d.%s", count.index,
+                                                                                                 var.name) })
 }
 
 /*
@@ -193,37 +155,8 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = var.enable_public_ip
 
   /* merge all the tags together */
-  tags = merge(var.tags, var.public_subnet_tags, local.tags, { "Name" = format("public-%d.%s", count.index, var.name) })
-}
-
-/*
-  Create a Virtual Private Gateway
-
-  Dependencies: aws_vpc.environment
-*/
-resource "aws_vpn_gateway" "vpn_gw" {
-  count = (var.create_vgw ? 1 : 0)
-
-  vpc_id = aws_vpc.environment.id
-
-  tags = merge(var.tags, local.tags)
-}
-
-/*
-  Create the VPN connection
-
-  Dependencies: aws_vpn_gateway.vpn_gw
-*/
-resource "aws_vpn_connection" "vpn" {
-  count = (var.create_vgw ? 1 : 0)
-
-  vpn_gateway_id = aws_vpn_gateway.vpn_gw[0].id
-
-  customer_gateway_id = var.customer_gateway_id
-  type                = "ipsec.1"
-  static_routes_only  = true
-
-  tags = merge(var.tags, local.tags)
+  tags = merge(var.tags, var.public_subnet_tags, local.tags, { "Name" = format("public-%d.%s", count.index,
+                                                                                               var.name) })
 }
 
 ##############################################
@@ -251,16 +184,6 @@ resource "aws_route_table_association" "private" {
   count = length(local.availability_zones)
 
   subnet_id      = element(aws_subnet.private.*.id, count.index)
-  route_table_id = aws_vpc.environment.main_route_table_id
+  route_table_id = element(aws_route_table.private.*.id, count.index)
+  //route_table_id = aws_vpc.environment.main_route_table_id
 }
-
-/* create private route53 zone */
-resource "aws_route53_zone" "vpc" {
-  count = local.create_zone
-  name  = var.route53_zone
-
-  vpc_id = aws_vpc.environment.id
-
-  tags = merge(var.tags, local.tags)
-}
-
