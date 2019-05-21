@@ -33,12 +33,6 @@ This module takes the following inputs:
   `private_subnet_tags` | Map of tags to apply to private subnets. | map | `{}`
   `enable_dns` | A boolean flag to enable/disable DNS support and DNS hostnames. | boolean | `true`
   `enable_public_ip` | A boolean flag to enable/disable assignment of public IP to instances launched in `public_subnets` | boolean | `false`
-  `create_vgw` | A boolean indicating whether to create a VPC VPN Gateway and corresponding EC2 VPN connection. | boolean | `true`
-  `customer_gateway_id` | The ID of the customer gateway (required if create_vgw = true). | string | `""`
-  `govcloud` | Set to true when creating VPC in govCloud (which doesn't have support for NAT gateway). | boolean | `false`
-  `key_name` | EC2 SSH key for NAT instance (required and only used when govcloud = true). | string | `""`
-  `peering_info` | List of VPC, by tag:Name, to peer. VPC's must exist in the same account. Use https://bitbucket.org/dat/tf-module-vpc-peering/src/master/ instead. | list | `[]`
-  `route53_zone` | Name of the route53 zone to create and associate with this VPC. | string | `""`
   `tags`               | Map of tags to apply to all resources | map | `{}`
 
 ### Ouputs
@@ -55,8 +49,6 @@ This module exposes the following outputs:
   `public_subnet_id` | The ID(s) of the public subnet(s). | list
   `prvt_subnet_cidr` | The CIDR block of the private subnet(s). | list
   `public_subnet_cidr` | The CIDR block of the public subnet(s). | list
-  `nat_instance_id`    | Instance ID of the NAT instance (govcloud = true only). | string
-
 
 ## Usage
 - - - -
