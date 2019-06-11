@@ -16,6 +16,13 @@ resource "aws_vpc" "environment" {
   tags = merge(var.tags, local.tags, { "vpc" = var.name })
 }
 
+resource "aws_vpc_ipv4_cidr_block_association" "this" {
+  count = length(var.secondary_cidr_block)
+
+  vpc_id     = aws_vpc.environment.id
+  cidr_block = var.secondary_cidr_block[count.index]
+}
+
 /* create a single internet gateway */
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.environment.id

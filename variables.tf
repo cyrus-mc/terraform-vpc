@@ -31,6 +31,11 @@ variable "availability_zones" {
 variable "cidr_block"      {}
 variable "cidr_block_bits" { default = "8" }
 
+variable "secondary_cidr_block" {
+  default = []
+  type = list(string)
+}
+
 variable "sg_cidr_blocks" {
   default     = []
   type        = list(string)

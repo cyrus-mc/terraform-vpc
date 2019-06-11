@@ -26,6 +26,7 @@ This module takes the following inputs:
   `availability_zones` | List of availability zones to provision subnets for. | list | `[]`
   `cidr_block`         | CIDR block to allow to the VPC | string | -
   `cidr_block_bits`    | Bits to extend cidr_block by for subnets. Only used if public_subnets and private_subnets are not supplied. | string | `8`
+  `secondary_cidr_block` | Secondary CIDR block to attch to VPC | list | `[]`
   `sg_cidr_blocks`     | CIDR block to allow inbound on default security group | list | `[]`
   `private_subnets`    | List of cidr blocks for private subnets. | list | `[]`
   `public_subnets`     | List of cidr blocks for public subnets. | list | `[]`
