@@ -10,7 +10,7 @@ resource "aws_vpc" "environment" {
   enable_dns_hostnames = var.enable_dns
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   tags = merge(var.tags, local.tags, { "vpc" = var.name })
@@ -128,6 +128,7 @@ resource "aws_subnet" "private" {
   /* merge all the tags together */
   tags = merge(var.tags, var.private_subnet_tags, local.tags, { "Name" = format("private-%d.%s", count.index,
                                                                                                  var.name) })
+  depends_on = [ aws_vpc_ipv4_cidr_block_association.this ]
 }
 
 /*
@@ -164,6 +165,8 @@ resource "aws_subnet" "public" {
   /* merge all the tags together */
   tags = merge(var.tags, var.public_subnet_tags, local.tags, { "Name" = format("public-%d.%s", count.index,
                                                                                                var.name) })
+
+  depends_on = [ aws_vpc_ipv4_cidr_block_association.this ]
 }
 
 ##############################################
