@@ -1,4 +1,4 @@
-@Library('shared-library@master') _
+@Library('shared-library@gitops') _
 
 inside {
   properties ([
