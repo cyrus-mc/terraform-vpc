@@ -35,6 +35,7 @@ This module takes the following inputs:
   `private_subnet_tags` | Map of tags to apply to private subnets. | map | `{}`
   `enable_dns` | A boolean flag to enable/disable DNS support and DNS hostnames. | boolean | `true`
   `enable_public_ip` | A boolean flag to enable/disable assignment of public IP to instances launched in `public_subnets` | boolean | `false`
+  `enable_internet_access` | A boolean flag to enable/disable creation of NAT and Internet gateway resources | boolean | `true`
   `tags`               | Map of tags to apply to all resources | map | `{}`
 
 ### Ouputs
