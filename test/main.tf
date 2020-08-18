@@ -28,6 +28,30 @@ module "test2" {
 
   name = "test1"
 
+  network_acl_rules = [
+    {
+      type = "ingress"
+      protocol = "tcp"
+      action = "allow"
+      from_port = 443
+      to_port   = 443
+    },
+    {
+      type = "egress"
+      protocol = "tcp"
+      action = "deny"
+      from_port = 80
+      to_port = 8080
+    },
+    {
+      type = "ingress"
+      protocol = "tcp"
+      action = "allow"
+      from_port = 8443
+      to_port   = 8443
+     }
+  ]
+
   public_subnet_tags = {
     tag1 = "value1"
   }

@@ -28,6 +28,7 @@ This module takes the following inputs:
   `cidr_block_bits`    | Bits to extend cidr_block by for subnets. Only used if public_subnets and private_subnets are not supplied. | string | `8`
   `secondary_cidr_block` | Secondary CIDR block to attch to VPC | list | `[]`
   `sg_cidr_blocks`     | CIDR block to allow inbound on default security group | list | `[]`
+  `network_acl_rules`  | List of network ACL rules (https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl) | list | `[]`
   `private_subnets`    | List of cidr blocks for private subnets. | list | `[]`
   `public_subnets`     | List of cidr blocks for public subnets. | list | `[]`
   `public_subnet_tags` | Map of tags to apply to public subnets. | map | `{}`
@@ -50,6 +51,34 @@ This module exposes the following outputs:
   `public_subnet_id` | The ID(s) of the public subnet(s). | list
   `prvt_subnet_cidr` | The CIDR block of the private subnet(s). | list
   `public_subnet_cidr` | The CIDR block of the public subnet(s). | list
+
+### Network ACL
+
+When defining `network_acl_rules` you must include field type with either value of `ingress` or `egress` denoting whether it is an ingress or egress rule. Rules are ordered in the order in which they are defined, meaning that you do not need to define `rule_no` as it will be implied based off the order. Lastly if you omit a value for `cidr_block` the CIDR block of the VPC will be used.
+
+ex:
+
+```hcl
+
+  network_acl_rules = [
+    {
+      type      = "ingress"
+      protocol  = "tcp"
+      action    = "allow"
+      from_port = 80
+      to_port   = 80
+    },
+    {
+      type      = "egress"
+      protocol  = "tcp"
+      action    = "allow"
+      from_port = 443
+      to_port   = 443
+    }
+  ]
+
+```
+
 
 ## Usage
 - - - -
@@ -95,6 +124,24 @@ module "vpc-dynamic" {
   cidr_block      = "10.36.8.0/22"
   /* number of bits to extend VPC cidr block for subnets (/24) */
   cidr_block_bits = "2"
+
+  /* create network ACL(s) */
+  network_acl_rules = [
+    {
+      type      = "ingress"
+      protocol  = "tcp"
+      action    = "allow"
+      from_port = 80
+      to_port   = 80
+    },
+    {
+      type      = "egress"
+      protocol  = "tcp"
+      action    = "allow"
+      from_port = 443
+      to_port   = 443
+    }
+  ]
 
   /* add some additional tags to public subnets */
   public_subnet_tags = {

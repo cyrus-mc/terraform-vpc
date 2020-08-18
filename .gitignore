@@ -7,3 +7,4 @@ terraform.tfstate.backup
 *.bak
 *~
 .*.swp
+test/.terraform.tfstate.lock.info

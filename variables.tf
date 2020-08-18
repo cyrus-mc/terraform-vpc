@@ -14,6 +14,14 @@ locals {
                                                      ? null_resource.generated_private_subnets.*.triggers.cidr_block
                                                      : var.public_subnets)
 
+  inbound_network_acl_rules_tmp = [ for value in var.network_acl_rules: value
+                                      if lookup(value, "type", "n/a") == "ingress" ]
+  inbound_network_acl_rules     = [ for index, value in local.inbound_network_acl_rules_tmp: merge(value, { rule_no: ((index + 1) * 100) }) ]
+
+  outbound_network_acl_rules_tmp = [ for value in var.network_acl_rules: value
+                                       if lookup(value, "type", "n/a") == "egress" ]
+  outbound_network_acl_rules =     [ for index, value in local.outbound_network_acl_rules_tmp: merge(value, { rule_no: ((index + 1) * 100) }) ]
+
   /* default tags */
   tags = {
     Name       = format("%s", var.name)
@@ -54,5 +62,7 @@ variable "private_subnet_tags" { default = {} }
 
 variable "enable_dns"       { default = true }
 variable "enable_public_ip" { default = false }
+
+variable "network_acl_rules" { default = [] }
 
 variable "tags" { default = {} }

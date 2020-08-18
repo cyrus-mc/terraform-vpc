@@ -197,3 +197,38 @@ resource "aws_route_table_association" "private" {
   route_table_id = element(aws_route_table.private.*.id, count.index)
   //route_table_id = aws_vpc.environment.main_route_table_id
 }
+
+/* create network ACL (if defined) */
+resource "aws_network_acl" "main" {
+  count = length(var.network_acl_rules) > 0 ? 1 : 0
+
+  vpc_id = aws_vpc.environment.id
+
+  dynamic "egress" {
+    for_each = local.outbound_network_acl_rules
+
+    content {
+      protocol   = egress.value.protocol
+      rule_no    = egress.value.rule_no
+      action     = egress.value.action
+      cidr_block = lookup(egress.value, "cidr_block", aws_vpc.environment.cidr_block)
+      from_port  = egress.value.from_port
+      to_port    = egress.value.to_port
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = local.inbound_network_acl_rules
+
+    content {
+      protocol   = ingress.value.protocol
+      rule_no    = ingress.value.rule_no
+      action     = ingress.value.action
+      cidr_block = lookup(ingress.value, "cidr_block", aws_vpc.environment.cidr_block)
+      from_port  = ingress.value.from_port
+      to_port    = ingress.value.to_port
+    }
+  }
+
+  tags = merge(var.tags, local.tags)
+}
