@@ -52,6 +52,8 @@ module "test2" {
      }
   ]
 
+  enable_internet_access = false
+
   public_subnet_tags = {
     tag1 = "value1"
   }

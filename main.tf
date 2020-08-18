@@ -25,6 +25,8 @@ resource "aws_vpc_ipv4_cidr_block_association" "this" {
 
 /* create a single internet gateway */
 resource "aws_internet_gateway" "main" {
+  count = local.enable_internet_access
+
   vpc_id = aws_vpc.environment.id
 
   tags = merge(var.tags, local.tags)
@@ -34,24 +36,24 @@ resource "aws_internet_gateway" "main" {
   Provision NAT Gateway per Availability Zone
 */
 resource "aws_eip" "eip" {
-  count = length(local.availability_zones)
+  count = length(local.availability_zones) * local.enable_internet_access
 
   tags = merge(var.tags, local.tags, { "Name" = format("%s.%s", var.name,
-                                                                local.availability_zones[ count.index ]) },
+                                                                local.availability_zones[count.index]) },
                                      { "vpc"    = var.name },
-                                     { "region" = local.availability_zones[ count.index ] })
+                                     { "region" = local.availability_zones[count.index] })
 }
 
 resource "aws_nat_gateway" "ngw" {
-  count = length(local.availability_zones)
+  count = length(local.availability_zones) * local.enable_internet_access
 
-  allocation_id = aws_eip.eip[ count.index ].id
-  subnet_id     = aws_subnet.public[ count.index ].id
+  allocation_id = aws_eip.eip[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
 
   tags = merge(var.tags, local.tags, { "Name" = format("%s.%s", var.name,
-                                                                local.availability_zones[ count.index ]) },
+                                                                local.availability_zones[count.index]) },
                                      { "vpc"    = var.name },
-                                     { "region" = local.availability_zones[ count.index ] })
+                                     { "region" = local.availability_zones[count.index] })
 }
 
 /* create a route table for the public subnet(s) */
@@ -64,10 +66,12 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route" "public" {
+  count = local.enable_internet_access
+
   route_table_id = aws_route_table.public.id
 
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.main.id
+  gateway_id             = aws_internet_gateway.main[0].id
 }
 
 /* create a route table per Availability Zone for private subnet(s) */
@@ -78,17 +82,17 @@ resource "aws_route_table" "private" {
 
   tags = merge(var.tags, local.tags, { "Name" = "private" },
                                      { "vpc"  = var.name },
-                                     { "region" = local.availability_zones[ count.index ] })
+                                     { "region" = local.availability_zones[count.index] })
 }
 
 resource "aws_route" "private" {
-  count = length(local.availability_zones)
+  count = length(local.availability_zones) * local.enable_internet_access
 
-  route_table_id = aws_route_table.private[ count.index ].id
+  route_table_id = aws_route_table.private[count.index].id
 
   /* default route is NAT gateway */
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.ngw[ count.index ].id
+  nat_gateway_id         = aws_nat_gateway.ngw[count.index].id
 }
 
 ##############################################
@@ -154,7 +158,7 @@ resource "aws_subnet" "public" {
   vpc_id = aws_vpc.environment.id
 
   /* create subnet at the end of the cidr block */
-  cidr_block = local.public_subnets[ count.index ]
+  cidr_block = local.public_subnets[count.index]
 
   /* load balance over all the availabilty zones */
   availability_zone = element(local.availability_zones, count.index)

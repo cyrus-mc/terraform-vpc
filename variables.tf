@@ -22,6 +22,8 @@ locals {
                                        if lookup(value, "type", "n/a") == "egress" ]
   outbound_network_acl_rules =     [ for index, value in local.outbound_network_acl_rules_tmp: merge(value, { rule_no: ((index + 1) * 100) }) ]
 
+  enable_internet_access = var.enable_internet_access ? 1 : 0
+
   /* default tags */
   tags = {
     Name       = format("%s", var.name)
@@ -64,5 +66,7 @@ variable "enable_dns"       { default = true }
 variable "enable_public_ip" { default = false }
 
 variable "network_acl_rules" { default = [] }
+
+variable "enable_internet_access" { default = true }
 
 variable "tags" { default = {} }
