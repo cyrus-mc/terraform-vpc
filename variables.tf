@@ -6,13 +6,19 @@ locals {
   availability_zones = (length(var.availability_zones) == 0
                                                             ? data.aws_availability_zones.get_all.names
                                                             : var.availability_zones)
+
+  generate_subnets = var.cidr_block_bits == "" ? 0 : 1
   /* Use passed in public subnets or generate */
   private_subnets = (length(var.private_subnets) == 0
-                                                      ? null_resource.generated_private_subnets.*.triggers.cidr_block
+                                                      ? (local.generate_subnets == 0 ? [] : null_resource.generated_private_subnets.*.triggers.cidr_block)
                                                       : var.private_subnets)
   public_subnets  = (length(var.public_subnets) == 0
-                                                     ? null_resource.generated_private_subnets.*.triggers.cidr_block
+                                                     ? (local.generate_subnets == 0 ? [] : null_resource.generated_private_subnets.*.triggers.cidr_block)
                                                      : var.public_subnets)
+
+   create_public_subnets  = length(local.public_subnets) == 0 ? 0 : 1
+   create_private_subnets = length(local.private_subnets) == 0 ? 0 : 1
+
 
   inbound_network_acl_rules_tmp = [ for value in var.network_acl_rules: value
                                       if lookup(value, "type", "n/a") == "ingress" ]
@@ -39,7 +45,7 @@ variable "availability_zones" {
 }
 
 variable "cidr_block"      {}
-variable "cidr_block_bits" { default = "8" }
+variable "cidr_block_bits" { default = "" }
 
 variable "secondary_cidr_block" {
   default = []

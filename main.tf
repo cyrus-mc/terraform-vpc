@@ -109,7 +109,7 @@ resource "aws_route" "private" {
 /* only used if list of private subnets to create isn't passed in */
 resource "null_resource" "generated_private_subnets" {
   /* create a subnet for each availability zone required */
-  count = length(local.availability_zones)
+  count = length(local.availability_zones) * local.generate_subnets
 
   triggers = {
     cidr_block = cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, length(local.availability_zones) + count.index)
@@ -117,7 +117,7 @@ resource "null_resource" "generated_private_subnets" {
 }
 
 resource "aws_subnet" "private" {
-  count = length(local.availability_zones)
+  count = length(local.availability_zones) * local.create_private_subnets
 
   vpc_id = aws_vpc.environment.id
 
@@ -145,7 +145,7 @@ resource "aws_subnet" "private" {
 
 resource "null_resource" "generated_public_subnets" {
   /* create subnet for each availability zone required */
-  count = length(local.availability_zones)
+  count = length(local.availability_zones) * local.generate_subnets
 
   triggers = {
     cidr_block = cidrsubnet(aws_vpc.environment.cidr_block, var.cidr_block_bits, count.index)
@@ -153,7 +153,7 @@ resource "null_resource" "generated_public_subnets" {
 }
 
 resource "aws_subnet" "public" {
-  count = length(local.availability_zones)
+  count = length(local.availability_zones) * local.create_public_subnets
 
   vpc_id = aws_vpc.environment.id
 
@@ -183,7 +183,7 @@ resource "aws_subnet" "public" {
   Dependencies: aws_subnet.public, aws_route_table.public
 */
 resource "aws_route_table_association" "public" {
-  count = length(local.availability_zones)
+  count = length(local.availability_zones) * local.create_public_subnets
 
   subnet_id      = element(aws_subnet.public.*.id, count.index)
   route_table_id = aws_route_table.public.id
@@ -195,7 +195,7 @@ resource "aws_route_table_association" "public" {
   Dependencies: aws_subnet.private, aws_vpc.environment
 */
 resource "aws_route_table_association" "private" {
-  count = length(local.availability_zones)
+  count = length(local.availability_zones) * local.create_private_subnets
 
   subnet_id      = element(aws_subnet.private.*.id, count.index)
   route_table_id = element(aws_route_table.private.*.id, count.index)
