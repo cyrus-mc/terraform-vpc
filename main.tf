@@ -203,13 +203,15 @@ resource "aws_route_table_association" "private" {
 }
 
 /* create network ACL (if defined) */
-resource "aws_network_acl" "main" {
-  count = length(var.network_acl_rules) > 0 ? 1 : 0
+resource "aws_network_acl" "private" {
+  count = length(lookup(var.network_acls, "private", [])) > 0 ? 1 : 0
 
   vpc_id = aws_vpc.environment.id
 
+  subnet_ids = aws_subnet.private.*.id
+
   dynamic "egress" {
-    for_each = local.outbound_network_acl_rules
+    for_each = local.private_outbound_network_acls
 
     content {
       protocol   = egress.value.protocol
@@ -222,7 +224,43 @@ resource "aws_network_acl" "main" {
   }
 
   dynamic "ingress" {
-    for_each = local.inbound_network_acl_rules
+    for_each = local.private_inbound_network_acls
+
+    content {
+      protocol   = ingress.value.protocol
+      rule_no    = ingress.value.rule_no
+      action     = ingress.value.action
+      cidr_block = lookup(ingress.value, "cidr_block", aws_vpc.environment.cidr_block)
+      from_port  = ingress.value.from_port
+      to_port    = ingress.value.to_port
+    }
+  }
+
+  tags = merge(var.tags, local.tags)
+}
+
+resource "aws_network_acl" "public" {
+  count = length(lookup(var.network_acls, "public", [])) > 0 ? 1 : 0
+
+  vpc_id = aws_vpc.environment.id
+
+  subnet_ids = aws_subnet.public.*.id
+
+  dynamic "egress" {
+    for_each = local.public_outbound_network_acls
+
+    content {
+      protocol   = egress.value.protocol
+      rule_no    = egress.value.rule_no
+      action     = egress.value.action
+      cidr_block = lookup(egress.value, "cidr_block", aws_vpc.environment.cidr_block)
+      from_port  = egress.value.from_port
+      to_port    = egress.value.to_port
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = local.public_inbound_network_acls
 
     content {
       protocol   = ingress.value.protocol

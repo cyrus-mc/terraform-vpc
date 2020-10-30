@@ -16,17 +16,23 @@ locals {
                                                      ? (local.generate_subnets == 0 ? [] : null_resource.generated_private_subnets.*.triggers.cidr_block)
                                                      : var.public_subnets)
 
-   create_public_subnets  = length(local.public_subnets) == 0 ? 0 : 1
-   create_private_subnets = length(local.private_subnets) == 0 ? 0 : 1
+  create_public_subnets  = length(local.public_subnets) == 0 ? 0 : 1
+  create_private_subnets = length(local.private_subnets) == 0 ? 0 : 1
 
 
-  inbound_network_acl_rules_tmp = [ for value in var.network_acl_rules: value
-                                      if lookup(value, "type", "n/a") == "ingress" ]
-  inbound_network_acl_rules     = [ for index, value in local.inbound_network_acl_rules_tmp: merge(value, { rule_no: ((index + 1) * 100) }) ]
+  private_inbound_network_acls_tmp = [ for value in lookup(var.network_acls, "private", []): value
+                                              if lookup(value, "type", "n/a") == "ingress" ]
+  private_inbound_network_acls     = [ for index, value in local.private_inbound_network_acls_tmp: merge(value, { rule_no: ((index + 1) * 100) }) ]
+  private_outbound_network_acls_tmp = [ for value in lookup(var.network_acls, "private", []): value
+                                              if lookup(value, "type", "n/a") == "egress" ]
+  private_outbound_network_acls     = [ for index, value in local.private_outbound_network_acls_tmp: merge(value, { rule_no: ((index + 1) * 100)   }) ]
 
-  outbound_network_acl_rules_tmp = [ for value in var.network_acl_rules: value
-                                       if lookup(value, "type", "n/a") == "egress" ]
-  outbound_network_acl_rules =     [ for index, value in local.outbound_network_acl_rules_tmp: merge(value, { rule_no: ((index + 1) * 100) }) ]
+  public_inbound_network_acls_tmp = [ for value in lookup(var.network_acls, "public", []): value
+                                                if lookup(value, "type", "n/a") == "ingress" ]
+  public_inbound_network_acls     = [ for index, value in local.public_inbound_network_acls_tmp: merge(value, { rule_no: ((index + 1) * 100)   }) ]
+  public_outbound_network_acls_tmp = [ for value in lookup(var.network_acls, "public", []): value
+                                                if lookup(value, "type", "n/a") == "egress" ]
+  public_outbound_network_acls     = [ for index, value in local.public_outbound_network_acls_tmp: merge(value, { rule_no: ((index + 1) * 100) }) ]
 
   enable_internet_access = var.enable_internet_access ? 1 : 0
 
@@ -71,7 +77,7 @@ variable "private_subnet_tags" { default = {} }
 variable "enable_dns"       { default = true }
 variable "enable_public_ip" { default = false }
 
-variable "network_acl_rules" { default = [] }
+variable "network_acls" { default = {} }
 
 variable "enable_internet_access" { default = true }
 
