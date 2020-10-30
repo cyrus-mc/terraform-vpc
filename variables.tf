@@ -16,8 +16,8 @@ locals {
                                                      ? (local.generate_subnets == 0 ? [] : null_resource.generated_private_subnets.*.triggers.cidr_block)
                                                      : var.public_subnets)
 
-   create_public_subnets  = length(local.public_subnets) == 0 ? 0 : 1
-   create_private_subnets = length(local.private_subnets) == 0 ? 0 : 1
+  create_public_subnets  = length(local.public_subnets) == 0 ? 0 : 1
+  create_private_subnets = length(local.private_subnets) == 0 ? 0 : 1
 
 
   inbound_network_acl_rules_tmp = [ for value in var.network_acl_rules: value

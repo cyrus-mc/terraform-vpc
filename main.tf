@@ -208,6 +208,8 @@ resource "aws_network_acl" "main" {
 
   vpc_id = aws_vpc.environment.id
 
+  subnet_ids = aws_subnet.private.*.id
+
   dynamic "egress" {
     for_each = local.outbound_network_acl_rules
 
