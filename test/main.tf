@@ -28,8 +28,9 @@ module "test2" {
 
   name = "test1"
 
-  network_acl_rules = [
-    {
+  network_acls = {
+    private = [
+      {
       type = "ingress"
       protocol = "tcp"
       action = "allow"
@@ -43,14 +44,17 @@ module "test2" {
       from_port = 80
       to_port = 8080
     },
-    {
+    ],
+    public = [
+      {
       type = "ingress"
       protocol = "tcp"
       action = "allow"
       from_port = 8443
       to_port   = 8443
      }
-  ]
+    ]
+  }
 
   enable_internet_access = false
 
