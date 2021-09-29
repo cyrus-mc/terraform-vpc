@@ -11,7 +11,7 @@ Official AWS documentation: https://docs.aws.amazon.com/vpc/latest/userguide/get
 
 This module requires:
 
-   -  [Terraform](https://github.com/hashicorp/terraform) `>= 0.14`
+   -  [Terraform](https://github.com/hashicorp/terraform) `>= 0.15`
    -  [AWS Provider](https://github.com/terraform-providers/terraform-provider-aws) `>= 2.10.0`
    -  [Null Resource Provider](https://github.com/terraform-providers/terraform-provider-null) `>= 2.1.0`
 
