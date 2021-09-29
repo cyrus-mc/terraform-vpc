@@ -8,3 +8,5 @@ terraform.tfstate.backup
 *~
 .*.swp
 test/.terraform.tfstate.lock.info
+test/test.tfplan
+.idea/
