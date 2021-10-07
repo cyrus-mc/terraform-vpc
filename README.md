@@ -25,12 +25,11 @@ This module takes the following inputs:
   `name`               | tag:Name value used for created resources. | string | -
   `availability_zones` | List of availability zones to provision subnets for. | list | `[]`
   `cidr_block`         | CIDR block to allow to the VPC | string | -
-  `cidr_block_bits`    | Bits to extend cidr_block by for subnets. Only used if public_subnets and private_subnets are not supplied. | string | ``
-  `secondary_cidr_block` | Secondary CIDR block to attch to VPC | list | `[]`
+  `secondary_cidr_blocks` | Secondary CIDR block(s) to attch to VPC | list | `[]`
   `sg_cidr_blocks`     | CIDR block to allow inbound on default security group | list | `[]`
   `network_acls`  | Map of public and private of network ACL rules (https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl) | list | `{}`
-  `private_subnets`    | List of cidr blocks for private subnets. | list | `[]`
-  `public_subnets`     | List of cidr blocks for public subnets. | list | `[]`
+  `private_subnets`    | List of subnet groups to create private subnets from. | list | `[]`
+  `public_subnets`     | List of subnet groups to create public subnets from. | list | `[]`
   `public_subnet_tags` | Map of tags to apply to public subnets. | map | `{}`
   `private_subnet_tags` | Map of tags to apply to private subnets. | map | `{}`
   `enable_dns` | A boolean flag to enable/disable DNS support and DNS hostnames. | boolean | `true`
@@ -53,6 +52,56 @@ This module exposes the following outputs:
   `prvt_subnet_cidr` | The CIDR block of the private subnet(s). | list
   `public_subnet_cidr` | The CIDR block of the public subnet(s). | list
 
+### Subnets
+
+The module allows creating subnet `groups`. A subnet group is a logical grouping of subnets (e.g: EKS subnets).
+
+e.g:
+
+```hcl
+
+  private_subnets = [
+    {
+      id: "primary"
+      cidr_blocks: [ "10.36.8.0/24", "10.36.9.0/24" ]
+    },
+    {
+      id: "eks"
+      cidr_blocks: [ "10.36.10.0/24", "10.36.11.0/24" ]
+    }
+  ]
+
+```
+
+All `cidr_blocks` specified must fall within the VPC `cidr_block` or `secondary_cidr_blocks`.
+
+### Internet Access
+
+When `enable_internet_access` is set to `true` module will provision Internet Gateway and NAT Gateway resources. For the purposes of NAT Gateway(s) a single NAT gateway per availability_zone will be created.
+
+e.g:
+
+```hcl
+
+  availability_zones = [ "us-west-2a", "us-west-2b", "us-west-2c" ]
+
+  enable_internet_access = true
+
+  public_subnets = [
+    {
+      id: "primary"
+      cidr_blocks = [ "10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24" ]
+    },
+    {
+      id: "secondary"
+      cidr_blocks = [ "10.0.3.0/24", "10.0.4.0/24", "10.0.5.0/24" ]
+    }
+  ]
+
+```
+
+Given the above input subnet group `primary` will create subnets in all 3 availability zones as will subnet group `secondary`. The NAT gateway resources will be provisioned in subnet group `primary` subnets as those listed first.
+
 ### Network ACL
 
 Specified either `public` or `private` Acls when defining `network_acls` to assign the Acl to either the `public` or `private` subnets. When defining rules you must specifiy whether it is an `ingress` or `egress` rule.
@@ -61,7 +110,7 @@ Rules are ordered in the order in which they are defined, meaning that you do no
 
 If you omit a value for `cidr_block` the CIDR block of the VPC will be used.
 
-ex:
+e.g:
 
 ```hcl
 
