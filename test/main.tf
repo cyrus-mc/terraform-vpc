@@ -23,11 +23,15 @@ module "test1" {
   name = "test1"
 
   public_subnet_tags = {
-    tag1 = "value1"
+    all = {
+      tag1 = "value1"
+    }
   }
 
   private_subnet_tags = {
-    tag1 = "value1"
+    all = {
+      tag1 = "value1"
+    }
   }
 }
 
@@ -87,11 +91,15 @@ module "test2" {
   enable_internet_access = false
 
   public_subnet_tags = {
-    tag1 = "value1"
+    primary = {
+      tag1 = "value1"
+    }
   }
 
   private_subnet_tags = {
-    tag1 = "value1"
+    primary = {
+      tag1 = "value1"
+    }
   }
 }
 

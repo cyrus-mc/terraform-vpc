@@ -118,8 +118,10 @@ resource "aws_subnet" "private" {
   map_public_ip_on_launch = false
 
   /* merge all the tags together */
-  tags = merge(var.tags, var.private_subnet_tags, local.tags, { "Name" = format("private-%d.%s", each.value.index,
-                                                                                                 var.name) })
+  tags = merge(var.tags,
+               lookup(var.private_subnet_tags, each.value.group, lookup(var.private_subnet_tags, "all", {})),
+               local.tags, { "Name" = format("private-%d.%s", each.value.index, var.name) })
+
   depends_on = [ aws_vpc_ipv4_cidr_block_association.this ]
 }
 
@@ -142,8 +144,9 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = var.enable_public_ip
 
   /* merge all the tags together */
-  tags = merge(var.tags, var.public_subnet_tags, local.tags, { "Name" = format("public-%d.%s", each.value.index,
-                                                                                               var.name) })
+  tags = merge(var.tags,
+               lookup(var.public_subnet_tags, each.value.group, lookup(var.private_subnet_tags, "all", {})),
+               local.tags, { "Name" = format("public-%d.%s", each.value.index, var.name) })
 
   depends_on = [ aws_vpc_ipv4_cidr_block_association.this ]
 }
