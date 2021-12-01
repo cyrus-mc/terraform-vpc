@@ -35,24 +35,43 @@ This module takes the following inputs:
   `enable_dns` | A boolean flag to enable/disable DNS support and DNS hostnames. | boolean | `true`
   `enable_public_ip` | A boolean flag to enable/disable assignment of public IP to instances launched in `public_subnets` | boolean | `false`
   `enable_internet_access` | A boolean flag to enable/disable creation of NAT and Internet gateway resources | boolean | `true`
+  `routes` | List of additional routes to add to route tables (see below) | list | `[]`
   `tags`               | Map of tags to apply to all resources | map | `{}`
 
-### Ouputs
-- - - -
+#### Routes
 
-This module exposes the following outputs:
+Additional routes to be added to either/both of the `public` or `private` route tables through input variable `routes`.
 
-  Name          | Description   | Type
-  ------------- | ------------- | -------------
-  `vpc_id` | The ID of the VPC. | string
-  `vpc_main_rt_id` | The ID of the main route table associated with this VPC. | string
-  `vpc_cidr_block` | The CIDR block of the VPC. | string
-  `prvt_subnet_id` | The ID(s) of the private subnet(s). | list
-  `public_subnet_id` | The ID(s) of the public subnet(s). | list
-  `prvt_subnet_cidr` | The CIDR block of the private subnet(s). | list
-  `public_subnet_cidr` | The CIDR block of the public subnet(s). | list
+Input `routes` is a list of maps with the following structure:
 
-### Subnets
+```
+
+  {
+    type = "private|public|all"
+    name = "..."
+    cidr_block = "..."
+    prefix_list_id = "..."
+    carrier_gateway_id = "..."
+    egress_only_gateway_id = "..."
+    gateway_id = "..."
+    instance_id = "..."
+    local_gateway_id = "..."
+    transit_gateway_id = "..."
+    vpc_endpoint_id = "..."
+    vpc_peering_connection_id = "..."
+  }
+
+
+```
+
+Where `type` specifies the route table to add the route to. Default is `all`.
+
+Where only one of `cidr_block` or `prefix_list_id` can be specified.
+
+Where only one of `carrier_gateway_id`, `egress_only_gateway_id`, `gateway_id`, `instance_id`, `local_gateway_id`, `transit_gateway_id`, `vpc_endpoint_id` or `vpc_peering_connection_id` can be specified. If value specified is `""` the module will attempt to determine the relevant value (currently only supported for `transit_gateway_id`).
+
+
+#### Subnets
 
 The module allows creating subnet `groups`. A subnet group is a logical grouping of subnets (e.g: EKS subnets).
 
@@ -75,7 +94,7 @@ e.g:
 
 All `cidr_blocks` specified must fall within the VPC `cidr_block` or `secondary_cidr_blocks`.
 
-### Internet Access
+#### Internet Access
 
 When `enable_internet_access` is set to `true` module will provision Internet Gateway and NAT Gateway resources. For the purposes of NAT Gateway(s) a single NAT gateway per availability_zone will be created.
 
@@ -102,7 +121,7 @@ e.g:
 
 Given the above input subnet group `primary` will create subnets in all 3 availability zones as will subnet group `secondary`. The NAT gateway resources will be provisioned in subnet group `primary` subnets as those listed first.
 
-### Network ACL
+#### Network ACL
 
 Specified either `public` or `private` Acls when defining `network_acls` to assign the Acl to either the `public` or `private` subnets. When defining rules you must specifiy whether it is an `ingress` or `egress` rule.
 
@@ -138,6 +157,20 @@ e.g:
 
 ```
 
+### Ouputs
+- - - -
+
+This module exposes the following outputs:
+
+  Name          | Description   | Type
+  ------------- | ------------- | -------------
+  `vpc_id` | The ID of the VPC. | string
+  `vpc_main_rt_id` | The ID of the main route table associated with this VPC. | string
+  `vpc_cidr_block` | The CIDR block of the VPC. | string
+  `prvt_subnet_id` | The ID(s) of the private subnet(s). | list
+  `public_subnet_id` | The ID(s) of the public subnet(s). | list
+  `prvt_subnet_cidr` | The CIDR block of the private subnet(s). | list
+  `public_subnet_cidr` | The CIDR block of the public subnet(s). | list
 
 ## Usage
 - - - -
@@ -203,6 +236,17 @@ module "vpc-dynamic" {
       }
     ]
   }
+
+  /* add route to private tables for traffic 10.0.0.0/8
+     to transit gateway (auto-discovered) */
+  routes = [
+    {
+      type = "private"
+      name = "transit"
+      transit_gateway_id = ""
+      cidr_block = "10.0.0.0/8"
+    }
+  ]
 
   /* add some additional tags to public subnets */
   public_subnet_tags = {

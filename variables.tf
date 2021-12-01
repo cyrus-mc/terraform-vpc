@@ -118,6 +118,10 @@ locals {
   public_subnet_per_availability_zone = { for key, value in local.public_subnets:
                                             value.availability_zone => key... }
 
+  /* check if route specified for transit gateway, with blank ID */
+  find_transit_gateway = length([ for route in var.routes: true
+                                     if lookup(route, "transit_gateway_id", null) == "" ]) > 0 ? 1 : 0
+
   /*
     create list of private/public ingress/egress ACL rules
   */
@@ -135,14 +139,39 @@ locals {
                                                 if lookup(value, "type", "n/a") == "egress" ]
   public_outbound_network_acls     = [ for index, value in local.public_outbound_network_acls_tmp: merge(value, { rule_no: ((index + 1) * 100) }) ]
 
+  routes_enriched = [ for route in var.routes:
+                        merge(route, { cidr_block:                lookup(route, "cidr_block", null),
+                                       prefix_list_id:            lookup(route, "prefix_list_id", null),
+                                       carrier_gateway_id:        lookup(route, "carrier_gateway_id", null),
+                                       egress_only_gateway_id:    lookup(route, "egress_only_gateway_id", null),
+                                       gateway_id:                lookup(route, "gateway_id", null),
+                                       instance_id:               lookup(route, "instance_id", null),
+                                       local_gateway_id:          lookup(route, "local_gateway_id", null),
+                                       transit_gateway_id:        lookup(route, "transit_gateway_id", null) == "" ? data.aws_ec2_transit_gateway.default[0].id : lookup(route, "transit_gateway_id", null),
+                                       vpc_endpoint_id:           lookup(route, "vpc_endpoint_id", null),
+                                       vpc_peering_connection_id: lookup(route, "vpc_peering_connection_id", null) }) ]
+
+  routes_tmp = flatten([ for az in local.availability_zones: [
+                   for route in local.routes_enriched:
+                     merge(route, { az: az }) ]
+                ])
+
+  routes_per_az = { for route in local.routes_tmp: format("%s.%s", route.az, route.name) => route
+                      if contains(["all", "private"], lookup(route, "type", "all"))
+                  }
+
+  routes_private = { for key, value in local.routes_per_az: key => value }
+
+  routes_public = { for route in local.routes_enriched: route.name => route
+                      if contains(["all", "public"], lookup(route, "type", "all"))
+                  }
+
   /* default tags */
   tags = {
     Name       = format("%s", var.name)
     built-with = "terraform"
   }
 }
-
-output test { value = local.private_subnets }
 
 variable "name" {}
 
@@ -167,6 +196,9 @@ variable "sg_cidr_blocks" {
 
 variable "private_subnets" { default = [] }
 variable "public_subnets"  { default = [] }
+
+
+variable "routes" { default = [] }
 
 /*
   This allows us to add additional tags to the public subnet.

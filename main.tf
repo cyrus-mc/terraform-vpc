@@ -1,6 +1,11 @@
 /* Query all the availability zones */
 data "aws_availability_zones" "get_all" {}
 
+/* find transit gateway (if required) */
+data "aws_ec2_transit_gateway" "default" {
+  count = local.find_transit_gateway
+}
+
 /* create VPC */
 resource "aws_vpc" "environment" {
   cidr_block = var.cidr_block
@@ -75,6 +80,24 @@ resource "aws_route" "public" {
   gateway_id             = aws_internet_gateway.main[0].id
 }
 
+resource "aws_route" "public_additional" {
+  for_each = local.routes_public
+
+  route_table_id = aws_route_table.public.id
+
+  destination_cidr_block     = each.value.cidr_block
+  destination_prefix_list_id = each.value.prefix_list_id
+
+  carrier_gateway_id        = each.value.carrier_gateway_id
+  egress_only_gateway_id    = each.value.egress_only_gateway_id
+  gateway_id                = each.value.gateway_id
+  instance_id               = each.value.instance_id
+  local_gateway_id          = each.value.local_gateway_id
+  transit_gateway_id        = each.value.transit_gateway_id
+  vpc_endpoint_id           = each.value.vpc_endpoint_id
+  vpc_peering_connection_id = each.value.vpc_peering_connection_id
+}
+
 /* create a route table per Availability Zone for private subnet(s) */
 resource "aws_route_table" "private" {
   for_each = toset(local.availability_zones)
@@ -95,6 +118,25 @@ resource "aws_route" "private" {
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = aws_nat_gateway.ngw[each.key].id
 }
+
+resource "aws_route" "private_additional" {
+  for_each = local.routes_private
+
+  route_table_id = aws_route_table.private[each.value.az].id
+
+  destination_cidr_block     = each.value.cidr_block
+  destination_prefix_list_id = each.value.prefix_list_id
+
+  carrier_gateway_id        = each.value.carrier_gateway_id
+  egress_only_gateway_id    = each.value.egress_only_gateway_id
+  gateway_id                = each.value.gateway_id
+  instance_id               = each.value.instance_id
+  local_gateway_id          = each.value.local_gateway_id
+  transit_gateway_id        = each.value.transit_gateway_id
+  vpc_endpoint_id           = each.value.vpc_endpoint_id
+  vpc_peering_connection_id = each.value.vpc_peering_connection_id
+}
+
 
 ##############################################
 #     Private / Public / Custom Subnets      #
