@@ -1,7 +1,5 @@
 # Amazon Web Services VPC
 
-[![Build Status](http://jenkins.dat.com/buildStatus/icon?job=DevOps/Terraform/Modules/tf-module-vpc/master)](http://jenkins.services.dat.internal/job/DevOps/job/Terraform/job/Modules/job/tf-module-vpc/)
-
 Terraform module used to setup a VPC according to the following structure: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Scenario2.html
 
 Official AWS documentation: https://docs.aws.amazon.com/vpc/latest/userguide/getting-started-ipv4.html
