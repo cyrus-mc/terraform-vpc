@@ -185,8 +185,8 @@ variable "cidr_block" {
 }
 
 variable "secondary_cidr_blocks" {
-  type    = list
-  default = []
+  type    = map
+  default = {}
 }
 
 variable "sg_cidr_blocks" {

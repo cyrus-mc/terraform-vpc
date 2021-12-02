@@ -22,7 +22,7 @@ resource "aws_vpc" "environment" {
 }
 
 resource "aws_vpc_ipv4_cidr_block_association" "this" {
-  for_each = toset(var.secondary_cidr_blocks)
+  for_each = var.secondary_cidr_blocks
 
   vpc_id     = aws_vpc.environment.id
   cidr_block = each.value

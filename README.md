@@ -23,7 +23,7 @@ This module takes the following inputs:
   `name`               | tag:Name value used for created resources. | string | -
   `availability_zones` | List of availability zones to provision subnets for. | list | `[]`
   `cidr_block`         | CIDR block to allow to the VPC | string | -
-  `secondary_cidr_blocks` | Secondary CIDR block(s) to attch to VPC | list | `[]`
+  `secondary_cidr_blocks` | Secondary CIDR block(s) to attch to VPC | map | `{}`
   `sg_cidr_blocks`     | CIDR block to allow inbound on default security group | list | `[]`
   `network_acls`  | Map of public and private of network ACL rules (https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl) | list | `{}`
   `private_subnets`    | List of subnet groups to create private subnets from. | list | `[]`
