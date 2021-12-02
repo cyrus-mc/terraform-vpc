@@ -79,14 +79,14 @@ locals {
       }
 
   */
-  private_subnets_tmp = flatten([ for groups in var.private_subnets: [
-                                    for index, subnet in groups.cidr_blocks:
-                                      { format("%s.%s.%s", groups.group, index, element(local.availability_zones, index)): {
+  private_subnets_tmp = flatten([ for group, blocks in var.private_subnets: [
+                                    for index, subnet in blocks:
+                                      { format("%s.%s.%s", group, index, element(local.availability_zones, index)): {
                                           cidr_block: subnet,
                                           # load balance over all available zones
                                           availability_zone: element(local.availability_zones, index),
                                           index: index,
-                                          group: groups.group
+                                          group: group
                                         }
                                       }
                                     ]
@@ -96,17 +96,17 @@ locals {
                         keys(value)[0] => values(value)[0]
                      }
 
-  public_subnets_tmp = flatten([ for groups in var.public_subnets: [
-                                    for index, subnet in groups.cidr_blocks:
-                                      { format("%s.%s.%s", groups.group, index, element(local.availability_zones, index)): {
-                                          cidr_block: subnet,
-                                          # load balance over all available zones
-                                          availability_zone: element(local.availability_zones, index),
-                                          index: index,
-                                          group: groups.group
-                                        }
-                                      }
-                                    ]
+  public_subnets_tmp = flatten([ for group, blocks in var.public_subnets: [
+                                   for index, subnet in blocks:
+                                     { format("%s.%s.%s", group, index, element(local.availability_zones, index)): {
+                                         cidr_block: subnet,
+                                         # load balance over all available zones
+                                         availability_zone: element(local.availability_zones, index),
+                                         index: index,
+                                         group: group
+                                       }
+                                     }
+                                   ]
                                 ])
 
   public_subnets = { for value in local.public_subnets_tmp:
@@ -194,8 +194,8 @@ variable "sg_cidr_blocks" {
   type        = list(string)
 }
 
-variable "private_subnets" { default = [] }
-variable "public_subnets"  { default = [] }
+variable "private_subnets" { default = {} }
+variable "public_subnets"  { default = {} }
 
 
 variable "routes" { default = [] }
