@@ -26,8 +26,8 @@ This module takes the following inputs:
   `secondary_cidr_blocks` | Secondary CIDR block(s) to attch to VPC | map | `{}`
   `sg_cidr_blocks`     | CIDR block to allow inbound on default security group | list | `[]`
   `network_acls`  | Map of public and private of network ACL rules (https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl) | list | `{}`
-  `private_subnets`    | List of subnet groups to create private subnets from. | list | `[]`
-  `public_subnets`     | List of subnet groups to create public subnets from. | list | `[]`
+  `private_subnets`    | Map of subnet groups to create private subnets from. | map | `{}`
+  `public_subnets`     | Map of subnet groups to create public subnets from. | map | `{}`
   `public_subnet_tags` | Map of tags to apply to public subnets. | map | `{}`
   `private_subnet_tags` | Map of tags to apply to private subnets. | map | `{}`
   `enable_dns` | A boolean flag to enable/disable DNS support and DNS hostnames. | boolean | `true`
@@ -78,15 +78,9 @@ e.g:
 ```hcl
 
   private_subnets = [
-    {
-      id: "primary"
-      cidr_blocks: [ "10.36.8.0/24", "10.36.9.0/24" ]
-    },
-    {
-      id: "eks"
-      cidr_blocks: [ "10.36.10.0/24", "10.36.11.0/24" ]
-    }
-  ]
+    primary: [ "10.36.8.0/24", "10.36.9.0/24" ],
+    eks: [ "10.36.10.0/24", "10.36.11.0/24" ]
+  }
 
 ```
 

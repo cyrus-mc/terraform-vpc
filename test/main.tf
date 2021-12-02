@@ -6,19 +6,13 @@ module "test1" {
   cidr_block = "10.36.8.0/22"
   secondary_cidr_blocks = { public = "10.0.0.0/22" }
 
-  private_subnets = [
-    {
-      group = "primary"
-      cidr_blocks = [ "10.36.10.0/24", "10.36.11.0/24" ]
-    }
-  ]
+  private_subnets = {
+    primary = [ "10.36.10.0/24", "10.36.11.0/24" ]
+  }
 
-  public_subnets = [
-    {
-      group = "primary"
-      cidr_blocks = [ "10.36.8.0/24", "10.36.9.0/24" ]
-    }
-  ]
+  public_subnets = {
+    primary = [ "10.36.8.0/24", "10.36.9.0/24" ]
+  }
 
   name = "test1"
 
@@ -42,23 +36,14 @@ module "test2" {
 
   cidr_block = "10.36.0.0/20"
 
-  private_subnets = [
-    {
-      group = "primary"
-      cidr_blocks = [ "10.36.10.0/24", "10.36.11.0/24" ]
-    },
-    {
-      group = "eks"
-      cidr_blocks = [ "10.36.12.0/24", "10.36.13.0/24" ]
-    }
-  ]
+  private_subnets = {
+    primary = [ "10.36.10.0/24", "10.36.11.0/24" ]
+    eks     = [ "10.36.12.0/24", "10.36.13.0/24" ]
+  }
 
-  public_subnets = [
-    {
-      group = "primary"
-      cidr_blocks = [ "10.36.8.0/24", "10.36.9.0/24" ]
-    }
-  ]
+  public_subnets = {
+    primary = [ "10.36.8.0/24", "10.36.9.0/24" ]
+  }
 
   name = "test1"
 
