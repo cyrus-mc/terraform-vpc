@@ -21,6 +21,37 @@ resource "aws_vpc" "environment" {
   tags = merge(var.tags, local.tags, { "vpc" = var.name })
 }
 
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.environment.id
+
+  dynamic "ingress" {
+    for_each = local.sg_inbound_rules
+
+    content {
+      from_port                = ingress.value.from_port
+      to_port                  = lookup(ingress.value, "to_port", lookup(ingress.value, "from_port"))
+      protocol                 = lookup(ingress.value, "protocol", "TCP")
+      cidr_blocks              = lookup(ingress.value, "cidr_blocks", [])
+      security_groups          = lookup(ingress.value, "cidr_blocks", []) == [] ? lookup(ingress.value, "security_groups", []) : []
+      self                     = lookup(ingress.value, "cidr_blocks", []) == [] ? (lookup(ingress.value, "security_groups", []) == [] ? lookup(ingress.value, "self", false) : false) : false
+    }
+  }
+
+  dynamic "egress" {
+    for_each = local.sg_outbound_rules
+
+    content {
+      from_port                = egress.value.from_port
+      to_port                  = lookup(egress.value, "to_port", lookup(egress.value, "from_port", "0"))
+      protocol                 = lookup(egress.value, "protocol", "TCP")
+      cidr_blocks              = lookup(egress.value, "cidr_blocks", [])
+      security_groups          = lookup(egress.value, "cidr_blocks", []) == [] ? lookup(egress.value, "security_groups", []) : []
+      self                     = lookup(egress.value, "cidr_blocks", []) == [] ? (lookup(egress.value, "security_groups", []) == [] ? lookup(egress.value, "self", false) : false) : false
+    }
+  }
+
+}
+
 resource "aws_vpc_ipv4_cidr_block_association" "this" {
   for_each = var.secondary_cidr_blocks
 

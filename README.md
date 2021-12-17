@@ -25,6 +25,8 @@ This module takes the following inputs:
   `cidr_block`         | CIDR block to allow to the VPC | string | -
   `secondary_cidr_blocks` | Secondary CIDR block(s) to attch to VPC | map | `{}`
   `sg_cidr_blocks`     | CIDR block to allow inbound on default security group | list | `[]`
+  `security_group_ingress_rules` | Map of security group rules to add to default VPC security group | map | `null`
+  `security_group_egress_rules` | Map of security group rules to add to default VPC security group | map | `null`
   `network_acls`  | Map of public and private of network ACL rules (https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl) | list | `{}`
   `private_subnets`    | Map of subnet groups to create private subnets from. | map | `{}`
   `public_subnets`     | Map of subnet groups to create public subnets from. | map | `{}`
@@ -148,6 +150,36 @@ e.g:
   }
 
 ```
+
+#### Default Security Group
+
+Management of VPC default security group rules is done through `security_group_ingress_rules` and `security_group_egress_rules`.
+
+Default rules are:
+
+```hcl
+
+  security_group_ingress_rules = {
+    Default = {
+      from_port = 0
+      to_port   = 0
+      protocol  = -1
+      self      = true
+    }
+  }
+
+  security_group_egress_rules = {
+    Default = {
+      from_port   = 0
+      to_port     = 0
+      protocol    = -1
+      cidr_blocks = [ "0.0.0.0/0" ]
+    }
+  }
+
+```
+
+Setting either the ingress or egress value to `{}` removes all reles for the ingress or egress.
 
 ### Ouputs
 - - - -

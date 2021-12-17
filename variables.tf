@@ -166,6 +166,28 @@ locals {
                       if contains(["all", "public"], lookup(route, "type", "all"))
                   }
 
+
+  sg_default_inbound_rules = {
+    Default = {
+      from_port = 0
+      to_port   = 0
+      protocol  = -1
+      self      = true
+    }
+  }
+  sg_inbound_rules = var.security_group_ingress_rules == {} ? {} : merge(local.sg_default_inbound_rules, var.security_group_ingress_rules)
+
+  sg_default_outbound_rules = {
+    Default = {
+      from_port   = 0
+      to_port     = 0
+      protocol    = -1
+      cidr_blocks = [ "0.0.0.0/0" ]
+    }
+  }
+  sg_outbound_rules = var.security_group_egress_rules == {} ? {} : merge(local.sg_default_outbound_rules, var.security_group_egress_rules)
+
+
   /* default tags */
   tags = {
     Name       = format("%s", var.name)
@@ -193,6 +215,9 @@ variable "sg_cidr_blocks" {
   default     = []
   type        = list(string)
 }
+
+variable "security_group_ingress_rules" { default = null }
+variable "security_group_egress_rules"  { default = null }
 
 variable "private_subnets" { default = {} }
 variable "public_subnets"  { default = {} }
