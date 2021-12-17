@@ -50,6 +50,7 @@ resource "aws_default_security_group" "default" {
     }
   }
 
+  tags = merge(var.tags, local.tags)
 }
 
 resource "aws_vpc_ipv4_cidr_block_association" "this" {
