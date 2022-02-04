@@ -139,8 +139,9 @@ locals {
                                                 if lookup(value, "type", "n/a") == "egress" ]
   public_outbound_network_acls     = [ for index, value in local.public_outbound_network_acls_tmp: merge(value, { rule_no: ((index + 1) * 100) }) ]
 
-  routes_enriched = [ for route in var.routes:
-                        merge(route, { cidr_block:                lookup(route, "cidr_block", null),
+  routes_enriched = [ for key, route in var.routes:
+                        merge(route, { name:                      lookup(route, "name", key),
+                                       cidr_block:                lookup(route, "cidr_block", null),
                                        prefix_list_id:            lookup(route, "prefix_list_id", null),
                                        carrier_gateway_id:        lookup(route, "carrier_gateway_id", null),
                                        egress_only_gateway_id:    lookup(route, "egress_only_gateway_id", null),
@@ -223,7 +224,7 @@ variable "private_subnets" { default = {} }
 variable "public_subnets"  { default = {} }
 
 
-variable "routes" { default = [] }
+variable "routes" { default = {} }
 
 /*
   This allows us to add additional tags to the public subnet.
