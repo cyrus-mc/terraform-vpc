@@ -219,7 +219,7 @@ resource "aws_subnet" "public" {
 
   /* merge all the tags together */
   tags = merge(var.tags,
-               lookup(var.public_subnet_tags, each.value.group, lookup(var.private_subnet_tags, "all", {})),
+               lookup(var.public_subnet_tags, each.value.group, lookup(var.public_subnet_tags, "all", {})),
                local.tags, { "Name" = format("public-%d.%s", each.value.index, var.name) })
 
   depends_on = [ aws_vpc_ipv4_cidr_block_association.this ]

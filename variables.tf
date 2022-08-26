@@ -231,8 +231,15 @@ variable "routes" { default = {} }
 
   Needed for Kubernetes, as an example, to tag with KubernetesCluster.
 */
-variable "public_subnet_tags"  { default = {} }
-variable "private_subnet_tags" { default = {} }
+variable "public_subnet_tags"  {
+  type    = map(map(string))
+  default = {}
+}
+
+variable "private_subnet_tags" {
+  type    = map(map(string))
+  default = {}
+}
 
 variable "enable_dns"       { default = true }
 variable "enable_public_ip" { default = false }
