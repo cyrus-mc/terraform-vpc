@@ -73,7 +73,10 @@ module "test2" {
      ]
   }
 
-  enable_internet_access = false
+  features = {
+    nat_gateway = false
+    internet_gateway = false
+  }
 
   public_subnet_tags = {
     primary = {
