@@ -35,8 +35,26 @@ This module takes the following inputs:
   `enable_dns` | A boolean flag to enable/disable DNS support and DNS hostnames. | boolean | `true`
   `enable_public_ip` | A boolean flag to enable/disable assignment of public IP to instances launched in `public_subnets` | boolean | `false`
   `enable_internet_access` | A boolean flag to enable/disable creation of NAT and Internet gateway resources | boolean | `true`
+  `features` | Map of VPC features (eg: dns support, map_public_ip_on_launch) to configure. | map | `{}`
   `routes` | List of additional routes to add to route tables (see below) | list | `[]`
   `tags`               | Map of tags to apply to all resources | map | `{}`
+
+#### Features
+
+Enable various VPC features via input parameter `features`.
+
+```
+
+  features = {
+    dns_support             = true
+    map_public_ip_on_launch = false
+    nat_gateway             = true
+    internet_gateway        = true
+  }
+
+```
+
+Default values shown above.
 
 #### Routes
 

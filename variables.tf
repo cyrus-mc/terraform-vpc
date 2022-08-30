@@ -10,8 +10,13 @@ locals {
   create_public_subnets = true
   create_private_subnets = true
 
-  /* helper variable for use in count */
-  enable_internet_access = var.enable_internet_access ? 1 : 0
+  features_default = {
+    dns_support             = true
+    map_public_ip_on_launch = false
+    nat_gateway             = true
+    internet_gateway        = true
+  }
+  features = merge(local.features_default, var.features)
 
   /*
     convert:
@@ -241,11 +246,12 @@ variable "private_subnet_tags" {
   default = {}
 }
 
-variable "enable_dns"       { default = true }
-variable "enable_public_ip" { default = false }
+
+variable "features" {
+  type    = map
+  default = {}
+}
 
 variable "network_acls" { default = {} }
-
-variable "enable_internet_access" { default = true }
 
 variable "tags" { default = {} }

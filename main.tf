@@ -11,8 +11,8 @@ resource "aws_vpc" "environment" {
   cidr_block = var.cidr_block
 
   /* Enable DNS support and DNS hostnames to support private hosted zones */
-  enable_dns_support   = var.enable_dns
-  enable_dns_hostnames = var.enable_dns
+  enable_dns_support   = local.features.dns_support
+  enable_dns_hostnames = local.features.dns_support
 
   lifecycle {
     prevent_destroy = false
@@ -62,7 +62,7 @@ resource "aws_vpc_ipv4_cidr_block_association" "this" {
 
 /* create a single internet gateway */
 resource "aws_internet_gateway" "main" {
-  count = local.enable_internet_access
+  count = local.features.internet_gateway ? 1 : 0
 
   vpc_id = aws_vpc.environment.id
 
@@ -76,7 +76,7 @@ resource "aws_internet_gateway" "main" {
   for that AZ
 */
 resource "aws_eip" "eip" {
-  for_each = var.enable_internet_access ? local.public_subnet_per_availability_zone : {}
+  for_each = local.features.nat_gateway ? local.public_subnet_per_availability_zone : {}
 
   tags = merge(var.tags, local.tags, { "Name"              = format("%s.%s", var.name, each.key) },
                                      { "vpc"               = var.name },
@@ -84,7 +84,7 @@ resource "aws_eip" "eip" {
 }
 
 resource "aws_nat_gateway" "ngw" {
-  for_each = var.enable_internet_access ? local.public_subnet_per_availability_zone : {}
+  for_each = local.features.nat_gateway ? local.public_subnet_per_availability_zone : {}
 
   allocation_id = aws_eip.eip[each.key].id
   subnet_id     = aws_subnet.public[each.value[0]].id
@@ -104,7 +104,7 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route" "public" {
-  count = local.enable_internet_access
+  count = local.features.internet_gateway ? 1 : 0
 
   route_table_id = aws_route_table.public.id
 
@@ -142,7 +142,7 @@ resource "aws_route_table" "private" {
 }
 
 resource "aws_route" "private" {
-  for_each = var.enable_internet_access ? toset(local.availability_zones) : toset([])
+  for_each = local.features.nat_gateway ? toset(local.availability_zones) : toset([])
 
   route_table_id = aws_route_table.private[each.key].id
 
@@ -215,7 +215,7 @@ resource "aws_subnet" "public" {
   availability_zone = each.value.availability_zone
 
   /* instances in the public zone get an IP address */
-  map_public_ip_on_launch = var.enable_public_ip
+  map_public_ip_on_launch = local.features.map_public_ip_on_launch
 
   /* merge all the tags together */
   tags = merge(var.tags,
